@@ -55,7 +55,7 @@ export function useBiometricAuth() {
     setIsRegistering(true);
     try {
       // Step 1: Get challenge from server
-      const response = await fetch("http://localhost:5000/api/biometric/register", {
+      const response = await fetch("/api/biometric/register", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email, user_id: userId }),
@@ -82,7 +82,7 @@ export function useBiometricAuth() {
       const credential = await navigator.credentials.create({ publicKey });
 
       // Step 4: Send credential back to server for verification
-      const verificationResponse = await fetch("http://localhost:5000/api/biometric/verify-registration", {
+      const verificationResponse = await fetch("/api/biometric/verify-registration", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -130,7 +130,7 @@ export function useBiometricAuth() {
     setIsAuthenticating(true);
     try {
       // Step 1: Get authentication options from server
-      const response = await fetch("http://localhost:5000/api/biometric/authenticate", {
+      const response = await fetch("/api/biometric/authenticate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
       });
@@ -156,7 +156,7 @@ export function useBiometricAuth() {
       const assertion = await navigator.credentials.get({ publicKey });
 
       // Step 4: Verify authentication with server
-      const verificationResponse = await fetch("http://localhost:5000/api/biometric/verify-authentication", {
+      const verificationResponse = await fetch("/api/biometric/verify-authentication", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -200,7 +200,7 @@ export function useBiometricAuth() {
   // Check if user has registered biometrics
   const hasRegisteredBiometric = useCallback(async (email) => {
     try {
-      const response = await fetch(`http://localhost:5000/api/biometric/check/${encodeURIComponent(email)}`, {
+      const response = await fetch(`/api/biometric/check/${encodeURIComponent(email)}`, {
         method: "GET",
       });
 

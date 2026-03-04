@@ -4,6 +4,7 @@ import DailyMatch from "../models/DailyMatch.js";
 import Match from "../models/Match.js";
 import MatchFeedback from "../models/MatchFeedback.js";
 import UserProfile from "../models/UserProfile.js";
+import { calculateDistance, getLocationCompatibility } from "../utils/locationService.js";
 
 const router = Router();
 
@@ -24,6 +25,10 @@ router.get("/daily", auth, async (req, res) => {
     // Determine matching intent
     const myIntent = myProfile?.dating_intent || "long_term";
     const useIntentMatching = hasCasualAddon && ["casual_dating", "short_term_connection"].includes(myIntent);
+
+    // Base search radius (km) for location-aware matching
+    // Premium users can see a slightly wider radius
+    const baseRadiusKm = isPremium ? 75 : 50;
     
     let matches = await DailyMatch.find({
       user_email: req.user.email,
@@ -62,19 +67,37 @@ router.get("/daily", auth, async (req, res) => {
         intentQuery = { dating_intent: { $in: compatibleIntents } };
       }
 
-      const candidates = await UserProfile.find({
+      const rawCandidates = await UserProfile.find({
         user_email: { $nin: excludeEmails },
         profile_complete: true,
         is_incognito: { $ne: true },
         ...intentQuery,
-      }).limit(isPremium ? 20 : 10); // Premium users get more matches
+      });
+
+      // Apply location-based filtering when we have coordinates
+      const candidatesWithLocation = rawCandidates.filter((c) => {
+        if (!myProfile?.location_coordinates || !c.location_coordinates) {
+          // If either user lacks location, keep them (don't over-filter)
+          return true;
+        }
+        const dist = calculateDistance(
+          myProfile.location_coordinates.latitude,
+          myProfile.location_coordinates.longitude,
+          c.location_coordinates.latitude,
+          c.location_coordinates.longitude
+        );
+        return dist <= baseRadiusKm;
+      });
+
+      // Limit final candidate pool size
+      const candidates = candidatesWithLocation.slice(0, isPremium ? 20 : 10); // Premium users get more matches
 
       const newMatches = candidates.map((c) => {
         const sharedInterests = (myProfile?.interests || []).filter((i) =>
           (c.interests || []).includes(i)
         );
         
-        // Enhanced compatibility scoring for Premium users
+        // Base compatibility score
         let score = 50 + sharedInterests.length * 10 + Math.floor(Math.random() * 15);
         const reasons = [];
         
@@ -82,7 +105,7 @@ router.get("/daily", auth, async (req, res) => {
           reasons.push(`You both enjoy ${sharedInterests.slice(0, 2).join(" and ")}`);
         }
         
-        if (myProfile?.relationship_goals === c.relationship_goals) {
+        if (myProfile?.relationship_goals && myProfile.relationship_goals === c.relationship_goals) {
           reasons.push("Same relationship goals");
           score += 5;
         }
@@ -93,9 +116,48 @@ router.get("/daily", auth, async (req, res) => {
         }
         
         // Intent alignment bonus
-        if (myProfile?.dating_intent === c.dating_intent) {
+        if (myProfile?.dating_intent && myProfile.dating_intent === c.dating_intent) {
           reasons.push("Aligned dating intentions");
           score += 10;
+        }
+
+        // Age compatibility: smaller age gaps are slightly favored
+        if (myProfile?.age && c.age) {
+          const ageDiff = Math.abs(myProfile.age - c.age);
+          if (ageDiff <= 3) {
+            reasons.push("Great age compatibility");
+            score += 6;
+          } else if (ageDiff <= 7) {
+            reasons.push("Compatible age range");
+            score += 3;
+          }
+        }
+
+        // Lifestyle alignment (smoking/drinking)
+        if (myProfile?.lifestyle && c.lifestyle) {
+          const lifestyleReasons = [];
+          if (myProfile.lifestyle.smoking && myProfile.lifestyle.smoking === c.lifestyle.smoking) {
+            lifestyleReasons.push("similar smoking habits");
+          }
+          if (myProfile.lifestyle.drinking && myProfile.lifestyle.drinking === c.lifestyle.drinking) {
+            lifestyleReasons.push("similar drinking habits");
+          }
+          if (lifestyleReasons.length) {
+            reasons.push(`You have ${lifestyleReasons.join(" and ")}.`);
+            score += 3;
+          }
+        }
+
+        // Location compatibility (if both have coordinates)
+        const locationCompat = getLocationCompatibility(myProfile || {}, c || {});
+        if (locationCompat > 0) {
+          // Convert 0-100 into a small bump
+          score += Math.floor(locationCompat / 25); // +0 to +4
+          if (locationCompat >= 80) {
+            reasons.push("You live close to each other");
+          } else if (locationCompat >= 60) {
+            reasons.push("You are in the same area");
+          }
         }
         
         // Premium: AI compatibility traits matching

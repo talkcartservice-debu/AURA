@@ -26,6 +26,8 @@ export default function Landing() {
   const navigate = useNavigate();
   const { hasRegisteredBiometric, authenticateWithBiometric } = useBiometricAuth();
   const [mode, setMode] = useState("login");
+  const [displayName, setDisplayName] = useState("");
+  const [username, setUsername] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -74,6 +76,8 @@ export default function Landing() {
   const handleModeChange = (newMode) => {
     setMode(newMode);
     setErrors({});
+    setDisplayName("");
+    setUsername("");
     setPassword("");
     setConfirmPassword("");
   };
@@ -89,6 +93,16 @@ export default function Landing() {
 
     // Password validation for signup
     if (mode === "signup") {
+      if (!displayName.trim()) {
+        newErrors.displayName = "Display name is required";
+      }
+
+      if (!username.trim()) {
+        newErrors.username = "Username is required";
+      } else if (!/^[a-zA-Z0-9_]{3,20}$/.test(username.trim())) {
+        newErrors.username = "Username must be 3-20 characters (letters, numbers, underscores)";
+      }
+
       const passwordErrors = validatePassword(password);
       if (passwordErrors.length > 0) {
         newErrors.password = `Password must have ${passwordErrors.join(", ")}`;
@@ -113,7 +127,7 @@ export default function Landing() {
         navigate("/discover");
         // Biometric modal will auto-open via useEffect if needed
       } else {
-        await signup(email, password);
+        await signup(email, password, displayName.trim(), username.trim());
         toast.success("Account created successfully!");
         navigate("/setup");
         // Don't auto-show biometric modal here - let user complete profile first
@@ -158,6 +172,53 @@ export default function Landing() {
 
       <div className="bg-white rounded-3xl shadow-2xl w-full max-w-sm p-6">
         <form onSubmit={handleSubmit} className="space-y-3">
+          {/* Email Field */}
+          {mode === "signup" && (
+            <>
+              {/* Display Name */}
+              <div>
+                <Input
+                  type="text"
+                  placeholder="Display name"
+                  value={displayName}
+                  onChange={(e) => {
+                    setDisplayName(e.target.value);
+                    if (errors.displayName) setErrors({ ...errors, displayName: null });
+                  }}
+                  className={`rounded-xl ${errors.displayName ? "border-red-500 focus-visible:ring-red-500" : ""}`}
+                  required
+                />
+                {errors.displayName && (
+                  <div className="flex items-center gap-1 mt-1 text-xs text-red-600">
+                    <AlertCircle className="w-3 h-3" />
+                    <span>{errors.displayName}</span>
+                  </div>
+                )}
+              </div>
+
+              {/* Username */}
+              <div>
+                <Input
+                  type="text"
+                  placeholder="Username"
+                  value={username}
+                  onChange={(e) => {
+                    setUsername(e.target.value);
+                    if (errors.username) setErrors({ ...errors, username: null });
+                  }}
+                  className={`rounded-xl ${errors.username ? "border-red-500 focus-visible:ring-red-500" : ""}`}
+                  required
+                />
+                {errors.username && (
+                  <div className="flex items-center gap-1 mt-1 text-xs text-red-600">
+                    <AlertCircle className="w-3 h-3" />
+                    <span>{errors.username}</span>
+                  </div>
+                )}
+              </div>
+            </>
+          )}
+
           {/* Email Field */}
           <div>
             <Input
@@ -236,6 +297,20 @@ export default function Landing() {
             </div>
           )}
 
+          <Button
+            type="submit"
+            className="w-full rounded-2xl h-12 bg-gradient-to-r from-rose-500 to-purple-600 text-white font-bold text-lg shadow-lg hover:shadow-xl transition-all active:scale-95 disabled:opacity-50 disabled:scale-100"
+            disabled={loading}
+          >
+            {loading ? (
+              <Loader2 className="w-6 h-6 animate-spin" />
+            ) : mode === "login" ? (
+              "Log In"
+            ) : (
+              "Create Account"
+            )}
+          </Button>
+
           {/* Biometric Login Section */}
           {/* Biometric Section - Shows for both Login and Signup */}
           <>
@@ -251,41 +326,43 @@ export default function Landing() {
             {/* Biometric Button */}
             <Button
               type="button"
-              onClick={() => setShowBiometricModal(true)}
-              disabled={loading}
+              onClick={() => {
+                if (mode === "login" && hasBiometric) {
+                  handleBiometricLogin();
+                } else if (!user?.id) {
+                  toast.error("Please log in first to enable fingerprint authentication");
+                } else {
+                  setShowBiometricModal(true);
+                }
+              }}
+              disabled={loading || (mode === "login" && !hasBiometric && !user?.id)}
               variant="outline"
-              className="w-full rounded-2xl h-11 border-2 border-blue-200 hover:bg-blue-50 hover:border-blue-300"
+              className={`w-full rounded-2xl h-11 border-2 ${
+                mode === "login" && !hasBiometric && !user?.id
+                  ? "border-gray-200 bg-gray-50 text-gray-400 cursor-not-allowed" 
+                  : "border-blue-200 hover:bg-blue-50 hover:border-blue-300"
+              }`}
             >
               <Fingerprint className="w-4 h-4 mr-2 text-blue-600" />
-              {hasBiometric ? "Use Fingerprint" : "Setup Fingerprint"}
+              {mode === "login" && hasBiometric 
+                ? "Use Fingerprint" 
+                : !user?.id 
+                  ? "Login Required for Setup" 
+                  : "Setup Fingerprint"}
             </Button>
 
-            {/* Login/Signup Toggle Under Biometric */}
-            <div className="flex gap-2 mt-4">
-              <Button
-                type="button"
-                onClick={() => handleModeChange("login")}
-                variant={mode === "login" ? "default" : "outline"}
-                className={`flex-1 rounded-xl ${
-                  mode === "login"
-                    ? "bg-gradient-to-r from-rose-500 to-purple-600 text-white"
-                    : "border-2 border-gray-200 hover:border-rose-300"
-                }`}
-              >
-                Log In
-              </Button>
-              <Button
-                type="button"
-                onClick={() => handleModeChange("signup")}
-                variant={mode === "signup" ? "default" : "outline"}
-                className={`flex-1 rounded-xl ${
-                  mode === "signup"
-                    ? "bg-gradient-to-r from-rose-500 to-purple-600 text-white"
-                    : "border-2 border-gray-200 hover:border-rose-300"
-                }`}
-              >
-                Sign Up
-              </Button>
+            {/* Login/Signup Toggle */}
+            <div className="flex justify-center mt-6">
+              <p className="text-sm text-gray-500">
+                {mode === "login" ? "Don't have an account? " : "Already have an account? "}
+                <button
+                  type="button"
+                  onClick={() => handleModeChange(mode === "login" ? "signup" : "login")}
+                  className="font-bold text-rose-500 hover:text-rose-600 transition-colors"
+                >
+                  {mode === "login" ? "Sign Up" : "Log In"}
+                </button>
+              </p>
             </div>
           </>
         </form>

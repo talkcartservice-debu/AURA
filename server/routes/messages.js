@@ -1,6 +1,7 @@
 import { Router } from "express";
 import auth from "../middleware/auth.js";
 import Message from "../models/Message.js";
+import { emitToUser } from "../signaling.js";
 
 const router = Router();
 
@@ -78,6 +79,20 @@ router.post("/", auth, async (req, res) => {
     }
 
     const message = await Message.create(messageData);
+
+    // Notify receiver in real-time via Socket.IO (if online)
+    try {
+      emitToUser(receiver_email, "message_received", {
+        match_id,
+        from_email: req.user.email,
+        content: message.content,
+        message_id: message._id,
+        created_at: message.createdAt,
+      });
+    } catch (notifyErr) {
+      console.error("Socket notify message_received error:", notifyErr);
+    }
+
     res.status(201).json(message);
   } catch (err) {
     console.error("Send message error:", err);

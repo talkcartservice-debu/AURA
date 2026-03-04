@@ -170,6 +170,16 @@ export function initializeSocketIO(httpServer) {
   return io;
 }
 
+// Emit an event to all sockets for a given user email
+export function emitToUser(email, event, payload) {
+  if (!io) return;
+  const userSockets = onlineUsers.get(email);
+  if (!userSockets || userSockets.size === 0) return;
+  userSockets.forEach((socketId) => {
+    io.to(socketId).emit(event, payload);
+  });
+}
+
 // Helper function to get online status
 export function isUserOnline(email) {
   const userSockets = onlineUsers.get(email);

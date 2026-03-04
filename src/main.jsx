@@ -7,6 +7,7 @@ import { AuthProvider } from "@/lib/AuthContext";
 import { Toaster } from "@/components/ui/sonner";
 import App from "./App";
 import "./index.css";
+import "./polyfills/crypto";
 
 ReactDOM.createRoot(document.getElementById("root")).render(
   <React.StrictMode>

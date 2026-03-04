@@ -7,7 +7,7 @@ import {
   generateConversationStarters,
   generateDateGuidance,
   calculateEventCompatibility,
-} from "../utils/relationshipCoachService.js";
+} from "../utils/conversationCoachService.js";
 
 const router = Router();
 

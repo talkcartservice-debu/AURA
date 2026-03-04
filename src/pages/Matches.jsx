@@ -1,4 +1,4 @@
-﻿import { useQuery } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { matchService, profileService, messageService } from "@/api/entities";
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
@@ -58,31 +58,68 @@ export default function Matches() {
             const unreadCount = lastMsgData?.unread_count || 0;
             
             return (
-              <div key={m._id} className="bg-white rounded-2xl border border-gray-100 p-4 flex items-center gap-3 shadow-sm hover:border-rose-200 transition-all">
+              <div
+                key={m._id}
+                className="bg-white rounded-2xl border border-gray-100 p-4 flex items-center gap-3 shadow-sm hover:border-rose-200 transition-all"
+              >
+                {/* Match user's actual profile photo */}
                 <div className="relative flex-shrink-0">
-                  <ProfileAvatar profile={profile} size="md" />
+                  <div className="w-14 h-14 rounded-2xl overflow-hidden border border-gray-100 bg-gradient-to-br from-rose-400 to-purple-500">
+                    {profile?.photos?.[0] ? (
+                      <img
+                        src={profile.photos[0]}
+                        alt={profile.display_name || otherEmail}
+                        className="w-full h-full object-cover"
+                      />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center text-white text-sm font-bold">
+                        {(profile?.display_name || otherEmail || "?")
+                          .split(" ")
+                          .map((n) => n[0])
+                          .join("")
+                          .toUpperCase()
+                          .slice(0, 2)}
+                      </div>
+                    )}
+                  </div>
                   <OnlineStatusBadge email={otherEmail} size="sm" />
                 </div>
+
+                {/* User information (name, age, location, last message) */}
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center justify-between">
-                    <h3 className="font-bold text-gray-900 text-sm truncate">{profile?.display_name || otherEmail}</h3>
+                    <h3 className="font-bold text-gray-900 text-sm truncate">
+                      {profile?.display_name || otherEmail}
+                      {profile?.age && (
+                        <span className="text-xs text-gray-500 font-normal">, {profile.age}</span>
+                      )}
+                    </h3>
                     {unreadCount > 0 && (
                       <span className="ml-2 bg-rose-500 text-white text-xs font-bold px-2 py-0.5 rounded-full">
                         {unreadCount}
                       </span>
                     )}
                   </div>
+                  {profile?.location && (
+                    <p className="text-[11px] text-gray-400 truncate">
+                      {profile.location}
+                    </p>
+                  )}
                   <p className="text-xs text-gray-400 truncate">
-                    {lastMessage 
-                      ? lastMessage.sender_email === myProfile?.user_email 
+                    {lastMessage
+                      ? lastMessage.sender_email === myProfile?.user_email
                         ? `You: ${lastMessage.content}`
                         : lastMessage.content
-                      : profile?.bio || "No bio yet"
-                    }
+                      : profile?.bio || "No bio yet"}
                   </p>
                   {lastMessage && (
                     <p className="text-xs text-gray-300 mt-0.5">
-                      {new Date(lastMessage.created_at).toLocaleDateString()} at {new Date(lastMessage.created_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
+                      {new Date(lastMessage.created_at).toLocaleDateString()}{" "}
+                      at{" "}
+                      {new Date(lastMessage.created_at).toLocaleTimeString([], {
+                        hour: "2-digit",
+                        minute: "2-digit",
+                      })}
                     </p>
                   )}
                 </div>

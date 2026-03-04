@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { profileService, subscriptionService, uploadService } from "@/api/entities";
+import { authService, profileService, subscriptionService, uploadService } from "@/api/entities";
 import { useAuth } from "@/lib/AuthContext";
 import { useNavigate } from "react-router-dom";
 import PhotoUpload from "@/components/profile/PhotoUpload";
@@ -303,6 +303,37 @@ export default function MyProfile() {
       {!isHotLove && (
         <p className="text-xs text-gray-400 text-center -mt-2">Requires Premium subscription</p>
       )}
+
+      {/* Password Update Section */}
+      <div className="mt-6 bg-white rounded-3xl p-6 shadow-sm border border-gray-100">
+        <h3 className="text-sm font-bold text-gray-700 mb-4 flex items-center gap-2">
+          <ShieldCheck className="w-4 h-4 text-rose-500" />
+          Update Password
+        </h3>
+        <div className="space-y-3">
+          <Input id="currentPass" type="password" placeholder="Current Password" color="rose" className="rounded-xl" />
+          <Input id="newPass" type="password" placeholder="New Password" color="rose" className="rounded-xl" />
+          <Button 
+            variant="outline" 
+            className="w-full rounded-xl border-rose-200 text-rose-600 hover:bg-rose-50"
+            onClick={async () => {
+              const current = document.getElementById('currentPass').value;
+              const next = document.getElementById('newPass').value;
+              if(!current || !next) return toast.error("Please fill all fields");
+              try {
+                await authService.updatePassword({ currentPassword: current, newPassword: next });
+                toast.success("Password updated!");
+                document.getElementById('currentPass').value = '';
+                document.getElementById('newPass').value = '';
+              } catch(e) {
+                toast.error(e.response?.data?.error || "Update failed");
+              }
+            }}
+          >
+            Change Password
+          </Button>
+        </div>
+      </div>
 
       {/* Premium Status Card */}
       {sub && sub.plan !== "free" && (

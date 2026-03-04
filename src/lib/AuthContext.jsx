@@ -27,15 +27,28 @@ export function AuthProvider({ children }) {
     const data = await authService.login({ email, password });
     localStorage.setItem("aura_token", data.token);
     localStorage.setItem("aura_email", data.email);
-    setUser({ email: data.email });
+    setUser({
+      email: data.email,
+      id: data.id,
+      username: data.username,
+    });
     return data;
   };
 
-  const signup = async (email, password) => {
-    const data = await authService.signup({ email, password });
+  const signup = async (email, password, displayName, username) => {
+    const data = await authService.signup({
+      email,
+      password,
+      display_name: displayName,
+      username,
+    });
     localStorage.setItem("aura_token", data.token);
     localStorage.setItem("aura_email", data.email);
-    setUser({ email: data.email });
+    setUser({
+      email: data.email,
+      id: data.id,
+      username: data.username,
+    });
     return data;
   };
 

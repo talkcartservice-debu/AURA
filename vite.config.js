@@ -9,11 +9,19 @@ export default defineConfig({
       "@": path.resolve(__dirname, "./src"),
     },
   },
+  define: {
+    // Fix libraries that expect a Node-like `global` in the browser (e.g. simple-peer deps)
+    global: "globalThis",
+  },
   server: {
     proxy: {
       "/api": {
-        target: "http://localhost:5000",
+        target: "http://127.0.0.1:5000",
         changeOrigin: true,
+      },
+      "/socket.io": {
+        target: "http://127.0.0.1:5000",
+        ws: true,
       },
     },
   },

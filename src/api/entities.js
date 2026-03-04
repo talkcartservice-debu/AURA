@@ -5,6 +5,7 @@ export const authService = {
   signup: (data) => api.post("/auth/signup", data).then((r) => r.data),
   login: (data) => api.post("/auth/login", data).then((r) => r.data),
   me: () => api.get("/auth/me").then((r) => r.data),
+  updatePassword: (data) => api.put("/auth/update-password", data).then((r) => r.data),
 };
 
 // Profiles

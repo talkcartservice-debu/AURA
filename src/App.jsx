@@ -53,6 +53,7 @@ export default function App() {
         <Route path="/chat/:matchId?" element={<Chat />} />
         <Route path="/groups" element={<Groups />} />
         <Route path="/profile" element={<MyProfile />} />
+        <Route path="/verification" element={<Verification />} />
         <Route path="/premium" element={<Premium />} />
         <Route path="/privacy" element={<PrivacySettings />} />
         <Route path="/hot-love" element={<HotLove />} />

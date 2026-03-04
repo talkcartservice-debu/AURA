@@ -30,8 +30,11 @@ export default function BiometricModal({ isOpen, onClose, email, userId, onSucce
     // Validate userId before attempting registration
     if (!userId) {
       console.error('Biometric registration attempted without userId');
-      toast.error("Please login first to enable fingerprint");
+      toast.error("You must be logged in to register fingerprint. Please log in first.");
       setStep("error");
+      setTimeout(() => {
+        handleClose();
+      }, 2000);
       return;
     }
     

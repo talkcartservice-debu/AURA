@@ -4,6 +4,7 @@ import Like from "../models/Like.js";
 import Match from "../models/Match.js";
 import DailyMatch from "../models/DailyMatch.js";
 import Subscription from "../models/Subscription.js";
+import { emitToUser } from "../signaling.js";
 
 const router = Router();
 
@@ -58,6 +59,20 @@ router.post("/", auth, async (req, res) => {
         });
       } else {
         match = existingMatch;
+      }
+
+      // Notify both users about the new mutual match (if online)
+      try {
+        emitToUser(req.user.email, "match_created", {
+          match_id: match._id,
+          other_email: to_email,
+        });
+        emitToUser(to_email, "match_created", {
+          match_id: match._id,
+          other_email: req.user.email,
+        });
+      } catch (notifyErr) {
+        console.error("Socket notify match_created error:", notifyErr);
       }
     }
 
