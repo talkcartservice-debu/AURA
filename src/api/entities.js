@@ -138,4 +138,45 @@ export const dateEventService = {
     api.put("/date-events/preferences", { preferred_date_types }).then((r) => r.data),
   proposeDate: (event_id, match_id, message) =>
     api.post("/date-events/propose-date", { event_id, match_id, message }).then((r) => r.data),
+  
+  // Community events
+  suggestCommunityEvent: (data) =>
+    api.post("/date-events/suggest", data).then((r) => r.data),
+  getCommunityEvents: (params) =>
+    api.get("/date-events/community", { params }).then((r) => r.data),
+  upvoteCommunityEvent: (id) =>
+    api.post(`/date-events/community/${id}/upvote`).then((r) => r.data),
+  
+  // AI coach integration
+  generateCoachTips: (match_id, event_type) =>
+    api.post("/date-events/generate-coach-tips", { match_id, event_type }).then((r) => r.data),
+  getMatchCompatibility: (matchId) =>
+    api.get(`/date-events/match-compatibility/${matchId}`).then((r) => r.data),
+};
+
+// Relationship Coach
+export const relationshipCoachService = {
+  getDashboard: () => api.get("/coach/dashboard").then((r) => r.data),
+  getConversationStarters: (matchId) =>
+    api.get(`/coach/conversation-starters/${matchId}`).then((r) => r.data),
+  getDateGuidance: (eventType, eventName) =>
+    api.get(`/coach/date-guidance/${eventType}`, { params: { eventName } }).then((r) => r.data),
+  getCommunicationTips: (matchId) =>
+    api.get(`/coach/communication-tips/${matchId}`).then((r) => r.data),
+  getRedFlagsEducation: () =>
+    api.get("/coach/red-flags-education").then((r) => r.data),
+  markInsightAsRead: (insightId) =>
+    api.patch(`/coach/insights/${insightId}/read`).then((r) => r.data),
+  rateInteraction: (interaction_id, rating) =>
+    api.post("/coach/interactions/rate", { interaction_id, rating }).then((r) => r.data),
+  
+  // Chat with AI Coach
+  chatWithCoach: (message) =>
+    api.post("/coach/chat", { message }).then((r) => r.data),
+  getChatHistory: (limit = 20) =>
+    api.get("/coach/chat/history", { params: { limit } }).then((r) => r.data),
+  clearChatHistory: () =>
+    api.delete("/coach/chat/history").then((r) => r.data),
+  setCoachingStyle: (style) =>
+    api.put("/coach/chat/style", { style }).then((r) => r.data),
 };

@@ -1,6 +1,13 @@
 import { Router } from "express";
 import auth from "../middleware/auth.js";
 import UserProfile from "../models/UserProfile.js";
+import DateEvent from "../models/DateEvent.js";
+import CommunityEvent from "../models/CommunityEvent.js";
+import {
+  generateConversationStarters,
+  generateDateGuidance,
+  calculateEventCompatibility,
+} from "../utils/relationshipCoachService.js";
 
 const router = Router();
 
@@ -215,6 +222,214 @@ router.post("/propose-date", auth, async (req, res) => {
       event,
       proposal_message: message || `Hey! I found this ${event.title} and thought it might be fun. Want to check it out together?`,
     });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Suggest a community event (user-generated content)
+router.post("/suggest", auth, async (req, res) => {
+  try {
+    const {
+      title,
+      description,
+      category,
+      location,
+      price_range,
+      atmosphere,
+      best_for,
+      images,
+      website_url,
+      phone_number,
+      hours_of_operation,
+      tips,
+    } = req.body;
+
+    // Validate required fields
+    if (!title || !description || !category || !location?.name || !location?.city) {
+      return res.status(400).json({ error: "Missing required fields" });
+    }
+
+    // Get user profile
+    const myProfile = await UserProfile.findOne({ user_email: req.user.email });
+    if (!myProfile) {
+      return res.status(404).json({ error: "Profile not found" });
+    }
+
+    // Create community event suggestion
+    const communityEvent = await CommunityEvent.create({
+      title,
+      description,
+      category,
+      location: {
+        name: location.name,
+        address: location.address,
+        city: location.city,
+        state: location.state,
+        country: location.country || "Nigeria",
+        coordinates: location.coordinates,
+      },
+      price_range,
+      atmosphere: atmosphere || [],
+      best_for: best_for || [],
+      suggested_by: myProfile._id,
+      suggester_email: req.user.email,
+      images: images || [],
+      website_url,
+      phone_number,
+      hours_of_operation,
+      tips: tips || [],
+      status: "pending", // Requires admin approval
+    });
+
+    res.status(201).json({
+      message: "Event suggested successfully! It will appear after approval.",
+      event: communityEvent,
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Get community-suggested events
+router.get("/community", auth, async (req, res) => {
+  try {
+    const { category, city, sort = "upvotes" } = req.query;
+
+    const filter = { status: "approved" };
+    
+    if (category) {
+      filter.category = category;
+    }
+    
+    if (city) {
+      filter["location.city"] = new RegExp(city, "i");
+    }
+
+    const sortOption = {};
+    if (sort === "upvotes") {
+      sortOption.upvote_count = -1;
+    } else if (sort === "recent") {
+      sortOption.createdAt = -1;
+    } else if (sort === "popular") {
+      sortOption.times_proposed_as_date = -1;
+    }
+
+    const events = await CommunityEvent.find(filter)
+      .populate("suggested_by", "display_name photos")
+      .sort(sortOption)
+      .limit(50);
+
+    res.json(events);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Upvote a community event
+router.post("/community/:id/upvote", auth, async (req, res) => {
+  try {
+    const event = await CommunityEvent.findById(req.params.id);
+    if (!event) {
+      return res.status(404).json({ error: "Event not found" });
+    }
+
+    // Check if already upvoted
+    const existingUpvote = event.upvotes.find(
+      u => u.user_email === req.user.email
+    );
+
+    if (existingUpvote) {
+      // Remove upvote (toggle off)
+      event.upvotes = event.upvotes.filter(u => u.user_email !== req.user.email);
+      event.upvote_count = Math.max(0, event.upvote_count - 1);
+    } else {
+      // Add upvote
+      event.upvotes.push({
+        user_email: req.user.email,
+        profile: (await UserProfile.findOne({ user_email: req.user.email }))._id,
+      });
+      event.upvote_count += 1;
+    }
+
+    await event.save();
+    res.json(event);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Generate AI coach tips for event matching
+router.post("/generate-coach-tips", auth, async (req, res) => {
+  try {
+    const { match_id, event_type } = req.body;
+
+    if (!match_id) {
+      return res.status(400).json({ error: "match_id is required" });
+    }
+
+    const match = await DateEvent.findById(match_id);
+    if (!match) {
+      return res.status(404).json({ error: "Match not found" });
+    }
+
+    // Get both profiles
+    const myProfile = await UserProfile.findOne({ user_email: req.user.email });
+    const otherProfile = await UserProfile.findOne({ 
+      user_email: match.proposed_to[0]?.user_email 
+    });
+
+    if (!myProfile || !otherProfile) {
+      return res.status(404).json({ error: "Profile not found" });
+    }
+
+    // Generate conversation starters
+    const conversationStarters = generateConversationStarters(myProfile, otherProfile, match);
+
+    // Generate date guidance if event type specified
+    const dateGuidance = event_type ? generateDateGuidance(event_type, match.title) : null;
+
+    // Calculate compatibility
+    const compatibility = calculateEventCompatibility(myProfile, otherProfile, {
+      type: event_type,
+      location: match.location?.city,
+      atmosphere: match.atmosphere?.[0],
+    });
+
+    res.json({
+      conversation_starters: conversationStarters,
+      date_guidance: dateGuidance,
+      compatibility: compatibility,
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Get match compatibility for events
+router.get("/match-compatibility/:matchId", auth, async (req, res) => {
+  try {
+    const match = await DateEvent.findById(req.params.matchId);
+    if (!match) {
+      return res.status(404).json({ error: "Match not found" });
+    }
+
+    const myProfile = await UserProfile.findOne({ user_email: req.user.email });
+    const otherProfile = await UserProfile.findOne({ 
+      user_email: match.proposed_to[0]?.user_email 
+    });
+
+    if (!myProfile || !otherProfile) {
+      return res.status(404).json({ error: "Profile not found" });
+    }
+
+    const compatibility = calculateEventCompatibility(myProfile, otherProfile, {
+      type: match.category,
+      location: match.location?.city,
+      atmosphere: match.atmosphere?.[0],
+    });
+
+    res.json(compatibility);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

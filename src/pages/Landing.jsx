@@ -157,18 +157,6 @@ export default function Landing() {
       </div>
 
       <div className="bg-white rounded-3xl shadow-2xl w-full max-w-sm p-6">
-        <div className="flex gap-2 mb-6">
-          {["login", "signup"].map((m) => (
-            <button
-              key={m}
-              onClick={() => handleModeChange(m)}
-              className={`flex-1 py-2 rounded-xl text-sm font-semibold transition-all ${mode === m ? 'bg-rose-500 text-white' : 'bg-gray-100 text-gray-500'}`}
-            >
-              {m === "login" ? "Log In" : "Sign Up"}
-            </button>
-          ))}
-        </div>
-
         <form onSubmit={handleSubmit} className="space-y-3">
           {/* Email Field */}
           <div>
@@ -248,9 +236,10 @@ export default function Landing() {
             </div>
           )}
 
-          {/* Biometric Login Button - Always show for testing */}
-          {mode === "login" && (
-            <div className="relative">
+          {/* Biometric Login Section */}
+          {/* Biometric Section - Shows for both Login and Signup */}
+          <>
+            <div className="relative my-4">
               <div className="absolute inset-0 flex items-center">
                 <span className="w-full border-t" />
               </div>
@@ -258,10 +247,8 @@ export default function Landing() {
                 <span className="bg-white px-2 text-gray-500">Or continue with</span>
               </div>
             </div>
-          )}
 
-          {/* Biometric Auth Button */}
-          {mode === "login" && (
+            {/* Biometric Button */}
             <Button
               type="button"
               onClick={() => setShowBiometricModal(true)}
@@ -272,29 +259,36 @@ export default function Landing() {
               <Fingerprint className="w-4 h-4 mr-2 text-blue-600" />
               {hasBiometric ? "Use Fingerprint" : "Setup Fingerprint"}
             </Button>
-          )}
 
-          <Button
-            type="submit"
-            disabled={loading}
-            className="w-full rounded-2xl h-11 bg-gradient-to-r from-rose-500 to-purple-600 text-white font-semibold"
-          >
-            {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : mode === "login" ? "Log In" : "Create Account"}
-          </Button>
+            {/* Login/Signup Toggle Under Biometric */}
+            <div className="flex gap-2 mt-4">
+              <Button
+                type="button"
+                onClick={() => handleModeChange("login")}
+                variant={mode === "login" ? "default" : "outline"}
+                className={`flex-1 rounded-xl ${
+                  mode === "login"
+                    ? "bg-gradient-to-r from-rose-500 to-purple-600 text-white"
+                    : "border-2 border-gray-200 hover:border-rose-300"
+                }`}
+              >
+                Log In
+              </Button>
+              <Button
+                type="button"
+                onClick={() => handleModeChange("signup")}
+                variant={mode === "signup" ? "default" : "outline"}
+                className={`flex-1 rounded-xl ${
+                  mode === "signup"
+                    ? "bg-gradient-to-r from-rose-500 to-purple-600 text-white"
+                    : "border-2 border-gray-200 hover:border-rose-300"
+                }`}
+              >
+                Sign Up
+              </Button>
+            </div>
+          </>
         </form>
-
-        {/* Password Requirements for Signup */}
-        {mode === "signup" && (
-          <div className="mt-4 p-3 bg-gray-50 rounded-lg">
-            <p className="text-xs font-semibold text-gray-700 mb-1">Password Requirements:</p>
-            <ul className="text-xs text-gray-600 space-y-0.5">
-              <li>• At least 8 characters</li>
-              <li>• One uppercase letter</li>
-              <li>• One lowercase letter</li>
-              <li>• One number</li>
-            </ul>
-          </div>
-        )}
       </div>
 
       {/* Biometric Modal */}

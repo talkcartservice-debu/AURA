@@ -40,12 +40,15 @@ export default function HotLove() {
   async function handleSubscribe() {
     setLoading(true);
     try {
-      const { authorization_url } = await subscriptionService.initialize(
-        `${window.location.origin}/hot-love?verify=true`
-      );
+      const { authorization_url } = await subscriptionService.initialize({
+        plan: "hot_love",
+        billing_cycle: "monthly",
+        callback_url: `${window.location.origin}/hot-love?verify=true`,
+      });
       // Redirect to Paystack checkout
       window.location.href = authorization_url;
-    } catch {
+    } catch (err) {
+      console.error("Initialize error:", err);
       toast.error("Failed to initialize payment. Please try again.");
       setLoading(false);
     }

@@ -21,6 +21,7 @@ import callRoutes from "./routes/calls.js";
 import biometricAuthRoutes from "./routes/biometricAuth.js";
 import locationRoutes from "./routes/location.js";
 import deepVerificationRoutes from "./routes/deepVerification.js";
+import relationshipCoachRoutes from "./routes/relationshipCoach.js";
 import { initializeSocketIO } from "./signaling.js";
 
 const app = express();
@@ -48,6 +49,7 @@ app.use("/api/upload", uploadRoutes);
 app.use("/api/blind-dates", blindDateRoutes);
 app.use("/api/privacy", privacyRoutes);
 app.use("/api/date-events", dateEventRoutes);
+app.use("/api/coach", relationshipCoachRoutes);
 app.use("/api/calls", callRoutes);
 app.use("/api/location", locationRoutes);
 
