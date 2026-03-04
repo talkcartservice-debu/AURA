@@ -1,0 +1,33 @@
+{
+  "name": "UserProfile",
+  "type": "object",
+  "properties": {
+    "user_email": { "type": "string" },
+    "display_name": { "type": "string" },
+    "age": { "type": "number" },
+    "bio": { "type": "string" },
+    "location": { "type": "string" },
+    "photos": { "type": "array", "items": { "type": "string" } },
+    "interests": { "type": "array", "items": { "type": "string" } },
+    "values": { "type": "array", "items": { "type": "string" } },
+    "dealbreakers": { "type": "array", "items": { "type": "string" } },
+    "hobbies": { "type": "array", "items": { "type": "string" } },
+    "lifestyle": {
+      "type": "object",
+      "properties": {
+        "smoking": { "type": "string" },
+        "drinking": { "type": "string" },
+        "exercise": { "type": "string" },
+        "diet": { "type": "string" }
+      }
+    },
+    "relationship_goals": { "type": "string", "enum": ["long_term", "casual_dating", "friendship_first", "marriage_minded", "open_to_anything"] },
+    "relationship_expectations": { "type": "array", "items": { "type": "string" } },
+    "is_verified": { "type": "boolean", "default": false },
+    "is_personality_verified": { "type": "boolean", "default": false },
+    "is_hot_love": { "type": "boolean", "default": false },
+    "personality_tags": { "type": "array", "items": { "type": "string" } },
+    "profile_complete": { "type": "boolean", "default": false }
+  },
+  "required": ["user_email"]
+}

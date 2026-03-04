@@ -1,0 +1,17 @@
+{
+  "name": "Group",
+  "type": "object",
+  "properties": {
+    "name": { "type": "string" },
+    "description": { "type": "string" },
+    "category": { "type": "string", "default": "social" },
+    "cover_emoji": { "type": "string", "default": "🎉" },
+    "tags": { "type": "array", "items": { "type": "string" } },
+    "location": { "type": "string" },
+    "creator_email": { "type": "string" },
+    "member_emails": { "type": "array", "items": { "type": "string" } },
+    "max_members": { "type": "number" },
+    "is_public": { "type": "boolean", "default": true }
+  },
+  "required": ["name", "creator_email"]
+}

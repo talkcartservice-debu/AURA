@@ -1,0 +1,18 @@
+{
+  "name": "Event",
+  "type": "object",
+  "properties": {
+    "title": { "type": "string" },
+    "description": { "type": "string" },
+    "event_date": { "type": "string" },
+    "event_time": { "type": "string" },
+    "location": { "type": "string" },
+    "capacity": { "type": "number" },
+    "cover_emoji": { "type": "string", "default": "🎉" },
+    "is_public": { "type": "boolean", "default": true },
+    "group_id": { "type": "string" },
+    "creator_email": { "type": "string" },
+    "rsvp_emails": { "type": "array", "items": { "type": "string" } }
+  },
+  "required": ["title", "event_date", "creator_email"]
+}

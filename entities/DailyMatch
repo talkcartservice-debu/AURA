@@ -1,0 +1,13 @@
+{
+  "name": "DailyMatch",
+  "type": "object",
+  "properties": {
+    "user_email": { "type": "string" },
+    "matched_email": { "type": "string" },
+    "compatibility_score": { "type": "number", "default": 0 },
+    "compatibility_reasons": { "type": "array", "items": { "type": "string" } },
+    "status": { "type": "string", "enum": ["pending", "liked", "passed"], "default": "pending" },
+    "date": { "type": "string", "format": "date" }
+  },
+  "required": ["user_email", "matched_email"]
+}

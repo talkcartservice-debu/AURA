@@ -1,0 +1,11 @@
+{
+  "name": "MatchFeedback",
+  "type": "object",
+  "properties": {
+    "match_id": { "type": "string" },
+    "user_email": { "type": "string" },
+    "rating": { "type": "number", "minimum": 1, "maximum": 5 },
+    "feedback": { "type": "string" }
+  },
+  "required": ["match_id", "user_email"]
+}

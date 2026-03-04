@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Generate Call Ringtone</title>
+</head>
+<body>
+    <h1>Ringtone Generator</h1>
+    <p>Click the button to generate and download a ringtone tone</p>
+    <button onclick="generateAndDownload()">Generate Ringtone MP3</button>
+    <audio id="audioPlayer" controls></audio>
+    
+    <script>
+        function generateAndDownload() {
+            // Create audio context
+            const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            
+            // Create oscillator for ringtone tone
+            const oscillator = audioContext.createOscillator();
+            const gainNode = audioContext.createGain();
+            
+            oscillator.connect(gainNode);
+            gainNode.connect(audioContext.destination);
+            
+            // Set ringtone pattern (classic phone ring: high-low-high-low)
+            oscillator.type = 'sine';
+            
+            // Play ring pattern
+            const now = audioContext.currentTime;
+            
+            // First ring (high pitch)
+            oscillator.frequency.setValueAtTime(880, now); // A5
+            gainNode.gain.setValueAtTime(0.5, now);
+            
+            // Second ring (low pitch)
+            oscillator.frequency.setValueAtTime(660, now + 0.4); // E5
+            gainNode.gain.setValueAtTime(0.5, now + 0.4);
+            
+            // Third ring (high pitch)
+            oscillator.frequency.setValueAtTime(880, now + 0.8);
+            gainNode.gain.setValueAtTime(0.5, now + 0.8);
+            
+            // Fourth ring (low pitch)
+            oscillator.frequency.setValueAtTime(660, now + 1.2);
+            gainNode.gain.setValueAtTime(0.5, now + 1.2);
+            
+            oscillator.start(now);
+            oscillator.stop(now + 2);
+            
+            // Record the audio
+            const mediaStreamDestination = audioContext.createMediaStreamDestination();
+            oscillator.connect(mediaStreamDestination);
+            
+            const mediaRecorder = new MediaRecorder(mediaStreamDestination.stream);
+            const chunks = [];
+            
+            mediaRecorder.ondataavailable = (e) => chunks.push(e.data);
+            
+            mediaRecorder.onstop = () => {
+                const blob = new Blob(chunks, { type: 'audio/webm' });
+                const url = URL.createObjectURL(blob);
+                
+                // Create download link
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = 'call_ringtone.webm';
+                a.click();
+                
+                // Also set as preview
+                const audioPlayer = document.getElementById('audioPlayer');
+                audioPlayer.src = url;
+            };
+            
+            mediaRecorder.start();
+            
+            setTimeout(() => {
+                mediaRecorder.stop();
+            }, 2000);
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Paystack Integration</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+        }
+        .test-result {
+            padding: 15px;
+            margin: 10px 0;
+            border-radius: 8px;
+            border: 2px solid #ddd;
+        }
+        .success { background: #d4edda; border-color: #28a745; }
+        .error { background: #f8d7da; border-color: #dc3545; }
+        .info { background: #d1ecf1; border-color: #17a2b8; }
+        button {
+            padding: 10px 20px;
+            margin: 5px;
+            cursor: pointer;
+            border: none;
+            border-radius: 5px;
+            background: #007bff;
+            color: white;
+            font-size: 16px;
+        }
+        button:hover { background: #0056b3; }
+        pre {
+            background: #f4f4f4;
+            padding: 10px;
+            border-radius: 5px;
+            overflow-x: auto;
+        }
+    </style>
+</head>
+<body>
+    <h1>🧪 Paystack Integration Test</h1>
+    
+    <div class="info">
+        <strong>Instructions:</strong>
+        <ol>
+            <li>Open browser console (F12)</li>
+            <li>Login to your app first to get a JWT token</li>
+            <li>Click "Get Token from App" or paste your token below</li>
+            <li>Click "Test Payment Initialization"</li>
+        </ol>
+    </div>
+
+    <div class="test-result info">
+        <h3>Step 1: Get JWT Token</h3>
+        <button onclick="getTokenFromApp()">Get Token from App</button>
+        <p>Or paste it manually:</p>
+        <input type="text" id="jwtToken" placeholder="Paste JWT token here" style="width: 100%; padding: 8px; margin: 5px 0;">
+    </div>
+
+    <div class="test-result">
+        <h3>Step 2: Test Payment Initialization</h3>
+        <button onclick="testPaymentInit()">Test Premium Subscription</button>
+        <div id="paymentResult"></div>
+    </div>
+
+    <div class="test-result">
+        <h3>Step 3: Check Server Logs</h3>
+        <p>Look at your server terminal for detailed logs including:</p>
+        <ul>
+            <li>Initialize payment request details</li>
+            <li>Paystack API call</li>
+            <li>Response from Paystack</li>
+            <li>Any errors</li>
+        </ul>
+    </div>
+
+    <script>
+        // Get token from the running app
+        async function getTokenFromApp() {
+            try {
+                const token = localStorage.getItem('token');
+                if (!token) {
+                    alert('No token found in localStorage. Please login to the app first or paste token manually.');
+                    return;
+                }
+                document.getElementById('jwtToken').value = token;
+                alert('Token loaded from localStorage!');
+                console.log('Token:', token);
+            } catch (error) {
+                alert('Error getting token: ' + error.message);
+            }
+        }
+
+        // Test payment initialization
+        async function testPaymentInit() {
+            const token = document.getElementById('jwtToken').value.trim();
+            const resultDiv = document.getElementById('paymentResult');
+            
+            if (!token) {
+                alert('Please enter a JWT token!');
+                return;
+            }
+
+            resultDiv.innerHTML = '<p>⏳ Testing...</p>';
+            
+            console.log('Testing payment initialization...');
+            console.log('Token:', token.substring(0, 50) + '...');
+
+            try {
+                const response = await fetch('http://localhost:5000/api/subscriptions/initialize', {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        plan: 'premium',
+                        billing_cycle: 'monthly',
+                        add_casual: false,
+                        callback_url: 'http://localhost:5173/premium?verify=true'
+                    })
+                });
+
+                console.log('Response status:', response.status);
+                console.log('Response headers:', response.headers);
+
+                const data = await response.json();
+                console.log('Response data:', data);
+
+                if (response.ok) {
+                    resultDiv.className = 'test-result success';
+                    resultDiv.innerHTML = `
+                        <h3>✅ SUCCESS!</h3>
+                        <p><strong>Status:</strong> ${response.status}</p>
+                        <p><strong>Authorization URL:</strong> <a href="${data.authorization_url}" target="_blank">${data.authorization_url}</a></p>
+                        <p><strong>Reference:</strong> ${data.reference}</p>
+                        <p><strong>Access Code:</strong> ${data.access_code}</p>
+                        <button onclick="window.open('${data.authorization_url}', '_blank')">Open Payment Page</button>
+                        <pre>${JSON.stringify(data, null, 2)}</pre>
+                    `;
+                } else {
+                    resultDiv.className = 'test-result error';
+                    resultDiv.innerHTML = `
+                        <h3>❌ Error</h3>
+                        <p><strong>Status:</strong> ${response.status}</p>
+                        <p><strong>Error:</strong> ${data.error || 'Unknown error'}</p>
+                        <pre>${JSON.stringify(data, null, 2)}</pre>
+                    `;
+                }
+            } catch (error) {
+                console.error('Test failed:', error);
+                resultDiv.className = 'test-result error';
+                resultDiv.innerHTML = `
+                    <h3>❌ Request Failed</h3>
+                    <p><strong>Error:</strong> ${error.message}</p>
+                    <p><strong>Code:</strong> ${error.code || 'N/A'}</p>
+                    <p>This is likely a network error. Check:</p>
+                    <ul>
+                        <li>Is backend server running on port 5000?</li>
+                        <li>Check server terminal for logs</li>
+                        <li>Check browser console for CORS errors</li>
+                    </ul>
+                    <pre>${JSON.stringify(error, null, 2)}</pre>
+                `;
+            }
+        }
+
+        // Auto-load token if available
+        window.addEventListener('load', () => {
+            const token = localStorage.getItem('token');
+            if (token) {
+                document.getElementById('jwtToken').value = token;
+                console.log('Auto-loaded token from localStorage');
+            }
+        });
+    </script>
+</body>
+</html>
