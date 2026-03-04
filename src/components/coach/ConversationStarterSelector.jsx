@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { relationshipCoachService, matchService, profileService } from "@/api/entities";
+import { useAuth } from "@/lib/AuthContext";
 import { MessageCircle, User, Loader2, Sparkles, Copy, Check } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -204,17 +205,23 @@ export default function ConversationStarterSelector() {
 }
 
 function MatchCard({ match, onSelect }) {
+  const { user } = useAuth();
+  const currentEmail = user?.email;
+  const otherEmail = currentEmail
+    ? match.user1_email === currentEmail
+      ? match.user2_email
+      : match.user1_email
+    : null;
+
   const { data: profile, isLoading } = useQuery({
-    queryKey: ["profile", match.user1_email === match.matched_email ? match.user2_email : match.user1_email],
+    queryKey: ["profile", otherEmail],
     queryFn: () => {
-      const otherEmail = match.user1_email === match.matched_email ? match.user2_email : match.user1_email;
       if (!otherEmail) return Promise.resolve(null);
       return profileService.getByEmail(otherEmail);
     },
-    enabled: !!match,
+    enabled: !!otherEmail,
   });
 
-  const otherEmail = match?.user1_email === match?.matched_email ? match.user2_email : match.user1_email;
   const matchedAt = match?.matched_at || match?.createdAt;
 
   return (

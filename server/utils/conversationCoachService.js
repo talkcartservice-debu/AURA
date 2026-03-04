@@ -4,6 +4,52 @@ import UserProfile from "../models/UserProfile.js";
 import Match from "../models/Match.js";
 
 /**
+ * Call Gemini API to generate a coach response.
+ * Falls back to null on error so we can use rule-based responses instead.
+ */
+async function callGemini(prompt) {
+  const apiKey = process.env.GEMINI_API_KEY;
+  if (!apiKey) {
+    return null;
+  }
+
+  try {
+    const res = await fetch(
+      "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=" +
+        encodeURIComponent(apiKey),
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          contents: [
+            {
+              role: "user",
+              parts: [{ text: prompt }],
+            },
+          ],
+        }),
+      }
+    );
+
+    if (!res.ok) {
+      console.error("Gemini API error:", res.status, await res.text());
+      return null;
+    }
+
+    const data = await res.json();
+    const text =
+      data.candidates?.[0]?.content?.parts
+        ?.map((p) => p.text || "")
+        .join("")
+        .trim() || null;
+    return text;
+  } catch (err) {
+    console.error("Gemini request failed:", err);
+    return null;
+  }
+}
+
+/**
  * Generate conversation starters based on both users' profiles
  */
 export function generateConversationStarters(myProfile, otherProfile, match) {
@@ -123,7 +169,7 @@ export async function generateCoachResponse(userMessage, userEmail) {
     // Get user's profile for context
     const userProfile = await UserProfile.findOne({ user_email: userEmail });
     
-    // Get conversation history
+    // Get conversation history and coaching style
     let coachData = await ConversationCoach.findOne({ user_email: userEmail });
     
     if (!coachData) {
@@ -138,26 +184,121 @@ export async function generateCoachResponse(userMessage, userEmail) {
     // Analyze message to determine category and mood
     const analysis = analyzeUserMessage(userMessage);
     
-    // Generate appropriate response based on category
-    let response;
-    switch (analysis.category) {
-      case "first_date_prep":
-        response = generateFirstDateAdvice(userMessage, userProfile, analysis);
-        break;
-      case "communication_help":
-        response = generateCommunicationAdvice(userMessage, userProfile, analysis);
-        break;
-      case "red_flag_discussion":
-        response = generateRedFlagGuidance(userMessage, userProfile, analysis);
-        break;
-      case "confidence_building":
-        response = generateConfidenceBoost(userMessage, userProfile, analysis);
-        break;
-      case "relationship_question":
-        response = generateRelationshipAdvice(userMessage, userProfile, analysis);
-        break;
-      default:
-        response = generateGeneralSupport(userMessage, userProfile, analysis);
+    // Build a rich prompt for Gemini with context
+    const profileSummaryParts = [];
+    if (userProfile?.dating_intent) {
+      profileSummaryParts.push(
+        `Dating intent: ${userProfile.dating_intent.replace(/_/g, " ")}.`
+      );
+    }
+    if (userProfile?.values?.length) {
+      profileSummaryParts.push(
+        `Core values: ${userProfile.values.slice(0, 5).join(", ")}.`
+      );
+    }
+    if (userProfile?.personality_tags?.length) {
+      profileSummaryParts.push(
+        `Personality: ${userProfile.personality_tags.join(", ")}.`
+      );
+    }
+
+    const profileSummary =
+      profileSummaryParts.length > 0
+        ? profileSummaryParts.join(" ")
+        : "Limited profile data is available.";
+
+    const historySnippet = (coachData?.messages || [])
+      .slice(-6)
+      .map(
+        (m) =>
+          `${m.role === "user" ? "User" : "Coach"}: ${m.content}`.slice(0, 400)
+      )
+      .join("\n");
+
+    const style = coachData?.coaching_style || "supportive";
+    const styleDescription = {
+      supportive:
+        "Use a warm, encouraging tone. Emphasize empathy and emotional validation while still giving clear suggestions.",
+      direct:
+        "Be clear and straightforward, focusing on practical next steps. Still be kind, but don't avoid hard truths.",
+      gentle:
+        "Use very soft, reassuring language. Prioritize emotional safety and small, manageable suggestions.",
+      motivational:
+        "Be uplifting and energizing. Focus on strengths, possibilities, and confidence-building language.",
+      analytical:
+        "Be calm, logical, and structured. Break the situation into parts and walk the user through your reasoning.",
+    }[style] || style;
+
+    const geminiPrompt = `
+You are AURA's AI Relationship Coach. Respond like a caring, emotionally intelligent human relationship coach in a dating app.
+
+User emotional analysis:
+- Mood: ${analysis.mood}
+- Topic: ${analysis.topic}
+- Category: ${analysis.category}
+- Urgency: ${analysis.urgency}
+
+Desired coaching style: ${style}
+Style instructions: ${styleDescription}
+
+User profile context:
+${profileSummary}
+
+Recent conversation history (you are "Coach"):
+${historySnippet || "No previous messages."}
+
+User's latest message:
+"${userMessage}"
+
+Guidelines for your response:
+- Be empathetic, specific, and situational.
+- Acknowledge the user's feelings explicitly.
+- Give practical, step-by-step suggestions tailored to their situation.
+- Keep it concise (2–5 short paragraphs), no lists unless truly helpful.
+- Do NOT mention that you are an AI model or reference these instructions.
+
+Now write your response message as the coach.`;
+
+    // Try Gemini first; fall back to rule-based generator on failure
+    let response = await callGemini(geminiPrompt);
+
+    if (!response) {
+      // Generate appropriate response based on category (existing rule-based logic)
+      switch (analysis.category) {
+        case "first_date_prep":
+          response = generateFirstDateAdvice(userMessage, userProfile, analysis);
+          break;
+        case "communication_help":
+          response = generateCommunicationAdvice(
+            userMessage,
+            userProfile,
+            analysis
+          );
+          break;
+        case "red_flag_discussion":
+          response = generateRedFlagGuidance(
+            userMessage,
+            userProfile,
+            analysis
+          );
+          break;
+        case "confidence_building":
+          response = generateConfidenceBoost(
+            userMessage,
+            userProfile,
+            analysis
+          );
+          break;
+        case "relationship_question":
+          response = generateRelationshipAdvice(
+            userMessage,
+            userProfile,
+            analysis
+          );
+          break;
+        default:
+          response = generateGeneralSupport(userMessage, userProfile, analysis);
+      }
     }
     
     // Save conversation to history
@@ -205,7 +346,11 @@ export async function generateCoachResponse(userMessage, userEmail) {
   } catch (err) {
     console.error("Error generating coach response:", err);
     return {
-      response: "I'm here to help! Could you tell me more about what's on your mind?",
+      response: generateGeneralSupport(
+        userMessage,
+        null,
+        { mood: "neutral", topic: "general", category: "general_advice", urgency: "low" }
+      ),
       category: "general_advice",
       mood: "neutral",
       topic: "general",
@@ -238,23 +383,65 @@ function analyzeUserMessage(message) {
   // Detect category
   let category = "general_advice";
   let topic = "general";
-  
-  if (lowerMsg.includes("first date") || lowerMsg.includes("date tonight") || lowerMsg.includes("what to wear")) {
+
+  const hasConversationWords =
+    lowerMsg.includes("start a conversation") ||
+    lowerMsg.includes("start conversation") ||
+    (lowerMsg.includes("how") && lowerMsg.includes("talk") && lowerMsg.includes("her")) ||
+    (lowerMsg.includes("how") && lowerMsg.includes("talk") && lowerMsg.includes("him")) ||
+    lowerMsg.includes("how do i start a conversation");
+
+  const hasConfessionWords =
+    (lowerMsg.includes("tell") || lowerMsg.includes("say")) &&
+    (lowerMsg.includes("love") || lowerMsg.includes("like")) &&
+    (lowerMsg.includes("girl") || lowerMsg.includes("guy") || lowerMsg.includes("him") || lowerMsg.includes("her"));
+
+  if (
+    lowerMsg.includes("first date") ||
+    lowerMsg.includes("date tonight") ||
+    lowerMsg.includes("what to wear")
+  ) {
     category = "first_date_prep";
     topic = "first dates";
-  } else if (lowerMsg.includes("text") || lowerMsg.includes("message") || lowerMsg.includes("call back")) {
+  } else if (
+    lowerMsg.includes("text") ||
+    lowerMsg.includes("message") ||
+    lowerMsg.includes("call back") ||
+    hasConversationWords
+  ) {
     category = "communication_help";
     topic = "communication";
-  } else if (lowerMsg.includes("red flag") || lowerMsg.includes("warning sign") || lowerMsg.includes("concern")) {
+  } else if (
+    lowerMsg.includes("red flag") ||
+    lowerMsg.includes("warning sign") ||
+    lowerMsg.includes("concern")
+  ) {
     category = "red_flag_discussion";
     topic = "red flags";
-  } else if (lowerMsg.includes("confident") || lowerMsg.includes("insecure") || lowerMsg.includes("not good enough")) {
+  } else if (
+    lowerMsg.includes("confident") ||
+    lowerMsg.includes("insecure") ||
+    lowerMsg.includes("not good enough") ||
+    (hasConfessionWords &&
+      (lowerMsg.includes("fear") ||
+        lowerMsg.includes("afraid") ||
+        lowerMsg.includes("scared")))
+  ) {
     category = "confidence_building";
     topic = "self-confidence";
-  } else if (lowerMsg.includes("relationship") || lowerMsg.includes("partner") || lowerMsg.includes("together")) {
+  } else if (
+    lowerMsg.includes("relationship") ||
+    lowerMsg.includes("partner") ||
+    lowerMsg.includes("together") ||
+    hasConfessionWords
+  ) {
     category = "relationship_question";
     topic = "relationship dynamics";
-  } else if (lowerMsg.includes("break up") || lowerMsg.includes("breakup") || lowerMsg.includes("single")) {
+  } else if (
+    lowerMsg.includes("break up") ||
+    lowerMsg.includes("breakup") ||
+    lowerMsg.includes("single")
+  ) {
     category = "breakup_support";
     topic = "breakups";
   }
@@ -392,19 +579,68 @@ What aspect of your relationship would you like to explore? Communication, bound
  * Generate general supportive response
  */
 function generateGeneralSupport(message, profile, analysis) {
-  return `I hear you, and I'm here to support you! 💙
+  const lowerMsg = message.toLowerCase();
 
-Dating and relationships can bring up so many emotions - excitement, uncertainty, hope, and sometimes confusion. Whatever you're feeling is valid.
+  // Try to reflect their situation a bit
+  let focusLine = "";
+  if (
+    lowerMsg.includes("start a conversation") ||
+    lowerMsg.includes("start conversation") ||
+    (lowerMsg.includes("how") && lowerMsg.includes("talk") && lowerMsg.includes("her")) ||
+    (lowerMsg.includes("how") && lowerMsg.includes("talk") && lowerMsg.includes("him"))
+  ) {
+    focusLine =
+      "It sounds like you're thinking a lot about how to start a conversation and make a good first impression.";
+  } else if (
+    lowerMsg.includes("love") &&
+    (lowerMsg.includes("girl") ||
+      lowerMsg.includes("guy") ||
+      lowerMsg.includes("him") ||
+      lowerMsg.includes("her"))
+  ) {
+    focusLine =
+      "You're carrying real feelings for someone, and it's completely normal to feel nervous about saying that out loud.";
+  } else if (
+    lowerMsg.includes("fear") ||
+    lowerMsg.includes("afraid") ||
+    lowerMsg.includes("scared")
+  ) {
+    focusLine =
+      "I can hear there’s some fear or anxiety underneath what you’re sharing, and that deserves gentle handling.";
+  } else if (lowerMsg.includes("first date")) {
+    focusLine =
+      "First dates bring up a mix of excitement and pressure, and it makes sense that you want to handle it well.";
+  }
 
-As your relationship coach, I can help you with:
-- Building confidence 🌟
-- Navigating communication 💬
-- Preparing for dates 📅
-- Understanding red flags 🛡️
-- Strengthening relationships 💕
-- Healing from breakups 💔
+  const moodLineMap = {
+    sad: "Whatever you're feeling right now is valid, and you don't have to push it away for us to work on this together.",
+    anxious:
+      "Anxiety around dating and relationships is more common than people admit—you're not alone in feeling this way.",
+    excited:
+      "It's actually a good sign that you're excited; it means this matters to you and there's something real here for you.",
+    frustrated:
+      "Frustration usually means your needs or expectations aren't being met, and we can unpack that calmly.",
+    confused:
+      "Confusion is a natural part of figuring people and relationships out—we can take it one small piece at a time.",
+    hopeful:
+      "That feeling of hope you have is important; we can use it as fuel while still staying realistic and grounded.",
+    neutral:
+      "Even if you’re not sure exactly what you’re feeling, that’s okay—we can sort through it step by step.",
+  };
 
-Tell me more about what's on your mind. What would be most helpful for you right now?`;
+  const moodLine = moodLineMap[analysis?.mood] || moodLineMap.neutral;
+
+  return `I hear you, and I'm here to support you genuinely—not with canned lines, but by really thinking about your situation. 💙
+
+${focusLine || "Dating and relationships can stir up a lot at once—excitement, nerves, doubts, and hope all mixed together."}
+
+${moodLine}
+
+From what you've shared, a useful next step would be:
+- Step back and name what you actually want here (connection, clarity, courage, closure, etc.).
+- Then we can turn that into 1–2 simple actions or messages you can try in real life.
+
+If you want, you can tell me a bit more detail (for example: how long you've known this person, how you usually talk, or what you're most afraid will happen), and I'll give you a concrete suggestion you can use word-for-word.`;
 }
 
 /**

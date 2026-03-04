@@ -19,6 +19,20 @@ export default function ChatWithCoach() {
     refetchInterval: 30000, // Refresh every 30 seconds
   });
 
+  // Coaching style mutation
+  const setStyleMutation = useMutation({
+    mutationFn: (style) => relationshipCoachService.setCoachingStyle(style),
+    onSuccess: (data) => {
+      qc.invalidateQueries(["coachChatHistory"]);
+      if (data?.coaching_style) {
+        toast.success(`Coach style set to ${data.coaching_style}`);
+      }
+    },
+    onError: () => {
+      toast.error("Failed to update coaching style");
+    },
+  });
+
   // Send message mutation
   const sendMessage = useMutation({
     mutationFn: (message) => relationshipCoachService.chatWithCoach(message),
@@ -114,21 +128,35 @@ export default function ChatWithCoach() {
             <div>
               <CardTitle className="text-lg">AI Relationship Coach</CardTitle>
               <p className="text-xs text-gray-500">
-                Session #{sessionCount + 1} • {coachingStyle.charAt(0).toUpperCase() + coachingStyle.slice(1)} Style
+                Session #{sessionCount + 1}
               </p>
             </div>
           </div>
           
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => clearHistory.mutate()}
-            disabled={clearHistory.isPending || messages.length === 0}
-            className="rounded-xl"
-          >
-            <Trash2 className="w-4 h-4 mr-1" />
-            Clear
-          </Button>
+          <div className="flex items-center gap-2">
+            <select
+              className="text-xs border rounded-lg px-2 py-1 bg-white text-gray-700"
+              value={coachingStyle}
+              onChange={(e) => setStyleMutation.mutate(e.target.value)}
+              disabled={setStyleMutation.isPending}
+            >
+              <option value="supportive">Supportive</option>
+              <option value="direct">Direct</option>
+              <option value="gentle">Gentle</option>
+              <option value="motivational">Motivational</option>
+              <option value="analytical">Analytical</option>
+            </select>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => clearHistory.mutate()}
+              disabled={clearHistory.isPending || messages.length === 0}
+              className="rounded-xl"
+            >
+              <Trash2 className="w-4 h-4 mr-1" />
+              Clear
+            </Button>
+          </div>
         </div>
       </CardHeader>
 

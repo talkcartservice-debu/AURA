@@ -84,7 +84,7 @@ export default function AIRelationshipCoach() {
             <span className="hidden sm:inline">Dashboard</span>
           </TabsTrigger>
           <TabsTrigger value="starters" className="flex items-center gap-2">
-            <MessageCircle className="w-4 h-4" />
+            <Sparkles className="w-4 h-4" />
             <span className="hidden sm:inline">Starters</span>
           </TabsTrigger>
           <TabsTrigger value="chat" className="flex items-center gap-2">
@@ -308,8 +308,18 @@ function RedFlagsEducationSection() {
       </Card>
 
       {educationData?.categories?.map((category, idx) => (
-        <EducationalCard key={idx} category={category} />
+        <EducationalCategory key={idx} category={category} />
       ))}
+
+      {educationData?.resources && (
+        <div className="p-4 bg-blue-50 border border-blue-200 rounded-xl">
+          <ul className="space-y-1 text-xs text-blue-800">
+            {educationData.resources.map((line, idx) => (
+              <li key={idx}>• {line}</li>
+            ))}
+          </ul>
+        </div>
+      )}
 
       {educationData?.disclaimer && (
         <div className="p-4 bg-amber-50 border border-amber-200 rounded-xl">
@@ -322,25 +332,27 @@ function RedFlagsEducationSection() {
   );
 }
 
-function EducationalCard({ category }) {
-  const severityColors = {
-    low: "bg-blue-100 text-blue-800 border-blue-200",
-    medium: "bg-yellow-100 text-yellow-800 border-yellow-200",
-    high: "bg-orange-100 text-orange-800 border-orange-200",
-    critical: "bg-red-100 text-red-800 border-red-200",
-  };
-
+function EducationalCategory({ category }) {
   return (
     <Card>
-      <CardContent className="pt-6">
-        <div className="flex items-start justify-between gap-2 mb-2">
-          <h3 className="font-bold text-gray-900">{category.title}</h3>
-          <span className={`text-xs px-2 py-1 rounded-full font-medium ${severityColors[category.severity]}`}>
-            {category.severity}
-          </span>
-        </div>
-        <p className="text-sm text-gray-600 mb-2">{category.category}</p>
-        <p className="text-sm text-gray-700">{category.content}</p>
+      <CardContent className="pt-6 space-y-3">
+        <h3 className="font-bold text-gray-900">{category.name}</h3>
+        {category.items?.map((item, idx) => (
+          <div
+            key={idx}
+            className="p-3 rounded-xl bg-white border border-gray-200"
+          >
+            <p className="text-sm font-semibold text-gray-900">
+              {item.flag}
+            </p>
+            <p className="text-xs text-gray-600 mt-1">{item.description}</p>
+            {item.healthy_alternative && (
+              <p className="text-xs text-green-700 mt-2">
+                Healthy alternative: {item.healthy_alternative}
+              </p>
+            )}
+          </div>
+        ))}
       </CardContent>
     </Card>
   );

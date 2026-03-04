@@ -10,6 +10,9 @@ import {
   clearConversationHistory,
   setCoachingStyle,
   generateConversationStarters,
+  generateDateGuidance,
+  getRedFlagsEducation,
+  generateCommunicationTips,
 } from "../utils/conversationCoachService.js";
 
 const router = Router();
@@ -131,10 +134,11 @@ router.get("/communication-tips/:matchId", auth, async (req, res) => {
 // Get educational content about red flags and healthy relationships
 router.get("/red-flags-education", auth, async (req, res) => {
   try {
-    const educationalContent = getRedFlagsEducation();
+    const { categories, resources } = getRedFlagsEducation();
 
     res.json({
-      categories: educationalContent,
+      categories,
+      resources,
       disclaimer: "This content is for educational purposes. Trust your instincts and prioritize your safety.",
     });
   } catch (err) {
