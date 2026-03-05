@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Send, Loader2, ArrowLeft } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import CallButtons from "@/components/calls/CallButtons";
+import { toast } from "sonner";
 
 export default function Chat() {
   const { matchId } = useParams();
@@ -18,6 +19,11 @@ export default function Chat() {
   const [msg, setMsg] = useState("");
   const [sending, setSending] = useState(false);
   const [profiles, setProfiles] = useState({});
+  const [selectedMessage, setSelectedMessage] = useState(null);
+  const [replyTo, setReplyTo] = useState(null);
+  const [editingMessage, setEditingMessage] = useState(null);
+  const [forwardSourceMessage, setForwardSourceMessage] = useState(null);
+  const [forwardTargetId, setForwardTargetId] = useState("");
   const bottomRef = useRef(null);
 
   const { data: matches } = useQuery({ queryKey: ["mutualMatches"], queryFn: matchService.getMutual });
@@ -103,14 +109,77 @@ export default function Chat() {
     e.preventDefault();
     if (!msg.trim()) return;
     setSending(true);
-    await messageService.send({ 
-      match_id: matchId, 
-      content: msg.trim(),
-      is_disappearing: false, // Can be toggled in future
-    });
-    setMsg("");
-    refetch();
-    setSending(false);
+    try {
+      const content = msg.trim();
+
+      if (editingMessage) {
+        await messageService.edit(editingMessage._id, content);
+        toast.success("Message updated");
+        setEditingMessage(null);
+      } else {
+        let finalContent = content;
+        if (replyTo) {
+          const snippet = replyTo.content.slice(0, 120);
+          finalContent = `↩️ Replying to: "${snippet}"\n\n${content}`;
+        }
+        await messageService.send({
+          match_id: matchId,
+          content: finalContent,
+          is_disappearing: false, // Can be toggled in future
+        });
+      }
+      setMsg("");
+      setReplyTo(null);
+      setSelectedMessage(null);
+      await refetch();
+    } finally {
+      setSending(false);
+    }
+  }
+
+  async function handleDeleteMessage(message) {
+    try {
+      await messageService.delete(message._id);
+      toast.success("Message deleted");
+      setSelectedMessage(null);
+      await refetch();
+    } catch (err) {
+      toast.error(err.response?.data?.error || "Failed to delete message");
+    }
+  }
+
+  function handleStartEdit(message) {
+    setEditingMessage(message);
+    setMsg(message.content);
+    setReplyTo(null);
+    setSelectedMessage(null);
+  }
+
+  function handleStartReply(message) {
+    setReplyTo(message);
+    setSelectedMessage(null);
+  }
+
+  function handleStartForward(message) {
+    setForwardSourceMessage(message);
+    setForwardTargetId("");
+    setSelectedMessage(null);
+  }
+
+  async function handleForwardSend() {
+    if (!forwardSourceMessage || !forwardTargetId) return;
+    try {
+      await messageService.send({
+        match_id: forwardTargetId,
+        content: forwardSourceMessage.content,
+        is_disappearing: false,
+      });
+      toast.success("Message forwarded");
+      setForwardSourceMessage(null);
+      setForwardTargetId("");
+    } catch (err) {
+      toast.error(err.response?.data?.error || "Failed to forward message");
+    }
   }
 
   return (
@@ -137,15 +206,181 @@ export default function Chat() {
         </div>
       </div>
       <div className="flex-1 overflow-y-auto p-4 space-y-3">
-        {(messages || []).map((m) => (
-          <div key={m._id} className={`flex ${m.sender_email === user?.email ? "justify-end" : "justify-start"}`}>
-            <div className={`max-w-[75%] px-4 py-2 rounded-2xl text-sm ${m.sender_email === user?.email ? "bg-gradient-to-r from-rose-500 to-purple-600 text-white" : "bg-gray-100 text-gray-800"}`}>
-              {m.content}
+        {(messages || []).map((m) => {
+          const isOwn = m.sender_email === user?.email;
+          const isSelected = selectedMessage?._id === m._id;
+          return (
+            <div
+              key={m._id}
+              className={`flex ${isOwn ? "justify-end" : "justify-start"}`}
+              onClick={() => setSelectedMessage(m)}
+            >
+              <div
+                className={`max-w-[75%] px-4 py-2 rounded-2xl text-sm cursor-pointer ${
+                  isOwn
+                    ? "bg-gradient-to-r from-rose-500 to-purple-600 text-white"
+                    : "bg-gray-100 text-gray-800"
+                } ${isSelected ? "ring-2 ring-rose-300" : ""}`}
+              >
+                <p className="whitespace-pre-wrap">{m.content}</p>
+                <div className="mt-1 flex items-center justify-between text-[10px] opacity-70">
+                  <span>
+                    {new Date(m.createdAt).toLocaleTimeString([], {
+                      hour: "2-digit",
+                      minute: "2-digit",
+                    })}
+                    {m.edited ? " · edited" : ""}
+                  </span>
+                </div>
+              </div>
             </div>
-          </div>
-        ))}
+          );
+        })}
         <div ref={bottomRef} />
       </div>
+      {/* Message action bar */}
+      {selectedMessage && (
+        <div className="px-4 pb-2 border-t border-gray-100 bg-white flex flex-wrap items-center gap-2 text-xs">
+          <span className="text-gray-500 max-w-[50%] truncate">
+            Selected: {selectedMessage.content.slice(0, 60)}
+          </span>
+          <div className="ml-auto flex flex-wrap gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="rounded-xl h-7 px-3 text-xs"
+              onClick={() => handleStartReply(selectedMessage)}
+            >
+              Reply
+            </Button>
+            {selectedMessage.sender_email === user?.email && (
+              <>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="rounded-xl h-7 px-3 text-xs"
+                  onClick={() => handleStartEdit(selectedMessage)}
+                >
+                  Edit
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="rounded-xl h-7 px-3 text-xs text-red-600 border-red-200"
+                  onClick={() => handleDeleteMessage(selectedMessage)}
+                >
+                  Delete
+                </Button>
+              </>
+            )}
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="rounded-xl h-7 px-3 text-xs"
+              onClick={() => handleStartForward(selectedMessage)}
+            >
+              Forward
+            </Button>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              className="rounded-xl h-7 px-3 text-xs text-gray-500"
+              onClick={() => setSelectedMessage(null)}
+            >
+              Cancel
+            </Button>
+          </div>
+        </div>
+      )}
+      {/* Reply / Edit / Forward context bars */}
+      {replyTo && (
+        <div className="px-4 pt-2 pb-1 bg-gray-50 border-t border-gray-100 text-xs text-gray-700">
+          <div className="flex items-center justify-between">
+            <span className="font-semibold">Replying to</span>
+            <button
+              type="button"
+              className="text-gray-400 hover:text-gray-600"
+              onClick={() => setReplyTo(null)}
+            >
+              ✕
+            </button>
+          </div>
+          <p className="truncate text-gray-500">
+            {replyTo.content}
+          </p>
+        </div>
+      )}
+      {editingMessage && (
+        <div className="px-4 pt-2 pb-1 bg-yellow-50 border-t border-yellow-100 text-xs text-yellow-800 flex items-center justify-between">
+          <span>Editing your message</span>
+          <button
+            type="button"
+            className="text-yellow-600 hover:text-yellow-800"
+            onClick={() => {
+              setEditingMessage(null);
+              setMsg("");
+            }}
+          >
+            Cancel
+          </button>
+        </div>
+      )}
+      {forwardSourceMessage && (
+        <div className="px-4 pt-2 pb-2 bg-blue-50 border-t border-blue-100 text-xs text-blue-800">
+          <div className="flex items-center justify-between mb-1">
+            <span className="font-semibold">Forward message to another match</span>
+            <button
+              type="button"
+              className="text-blue-600 hover:text-blue-800"
+              onClick={() => {
+                setForwardSourceMessage(null);
+                setForwardTargetId("");
+              }}
+            >
+              Cancel
+            </button>
+          </div>
+          <p className="truncate text-blue-700 mb-1">
+            {forwardSourceMessage.content}
+          </p>
+          <div className="flex items-center gap-2">
+            <select
+              className="flex-1 border rounded-lg px-2 py-1 text-xs"
+              value={forwardTargetId}
+              onChange={(e) => setForwardTargetId(e.target.value)}
+            >
+              <option value="">Select match…</option>
+              {(matches || [])
+                .filter((m) => m._id !== matchId)
+                .map((m) => {
+                  const otherEmail =
+                    m.user1_email === user?.email ? m.user2_email : m.user1_email;
+                  const profile = profiles[otherEmail];
+                  const label = profile?.display_name || otherEmail;
+                  return (
+                    <option key={m._id} value={m._id}>
+                      {label}
+                    </option>
+                  );
+                })}
+            </select>
+            <Button
+              type="button"
+              size="sm"
+              className="rounded-xl h-8 px-3 text-xs"
+              disabled={!forwardTargetId}
+              onClick={handleForwardSend}
+            >
+              Send
+            </Button>
+          </div>
+        </div>
+      )}
       <form onSubmit={handleSend} className="p-4 border-t border-gray-100 flex gap-2">
         <Input value={msg} onChange={(e) => setMsg(e.target.value)} placeholder="Type a message..." className="rounded-xl flex-1" />
         <Button type="submit" disabled={sending || !msg.trim()} className="rounded-xl bg-gradient-to-r from-rose-500 to-purple-600 text-white px-4">

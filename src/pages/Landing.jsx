@@ -67,7 +67,9 @@ export default function Landing() {
     }
   }, [mode, user]);
 
-  if (user) {
+  // If already logged in and on login mode, send to Discover
+  // (New signups stay on signup mode and are sent to /setup instead)
+  if (user && mode === "login") {
     navigate("/discover", { replace: true });
     return null;
   }
