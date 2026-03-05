@@ -93,91 +93,143 @@ router.get("/daily", auth, async (req, res) => {
       const candidates = candidatesWithLocation.slice(0, isPremium ? 20 : 10); // Premium users get more matches
 
       const newMatches = candidates.map((c) => {
-        const sharedInterests = (myProfile?.interests || []).filter((i) =>
-          (c.interests || []).includes(i)
-        );
-        
-        // Base compatibility score
-        let score = 50 + sharedInterests.length * 10 + Math.floor(Math.random() * 15);
         const reasons = [];
-        
+
+        const interestsA = myProfile?.interests || [];
+        const interestsB = c.interests || [];
+        const sharedInterests = interestsA.filter((i) => interestsB.includes(i));
+
+        const valuesA = myProfile?.values || [];
+        const valuesB = c.values || [];
+        const sharedValues = valuesA.filter((v) => valuesB.includes(v));
+
+        // Sub-scores normalised 0–1
+        let scoreInterests = Math.min(1, sharedInterests.length / 4); // up to 4 interests
+        let scoreValues = Math.min(1, sharedValues.length / 3);
+
+        let scoreIntent = 0;
+        if (myProfile?.dating_intent && c.dating_intent) {
+          scoreIntent = myProfile.dating_intent === c.dating_intent ? 1 : 0.4;
+        }
+
+        let scoreGoals = 0;
+        if (myProfile?.relationship_goals && c.relationship_goals) {
+          scoreGoals = myProfile.relationship_goals === c.relationship_goals ? 1 : 0.3;
+        }
+
+        let scoreAge = 0;
+        if (myProfile?.age && c.age) {
+          const ageDiff = Math.abs(myProfile.age - c.age);
+          if (ageDiff <= 3) scoreAge = 1;
+          else if (ageDiff <= 7) scoreAge = 0.6;
+          else if (ageDiff <= 12) scoreAge = 0.3;
+        }
+
+        let scoreLifestyle = 0;
+        if (myProfile?.lifestyle && c.lifestyle) {
+          let matches = 0;
+          if (myProfile.lifestyle.smoking && myProfile.lifestyle.smoking === c.lifestyle.smoking) matches += 1;
+          if (myProfile.lifestyle.drinking && myProfile.lifestyle.drinking === c.lifestyle.drinking) matches += 1;
+          scoreLifestyle = matches / 2;
+        }
+
+        const locationCompat = getLocationCompatibility(myProfile || {}, c || {}); // 0–100
+        const scoreLocation = locationCompat / 100;
+
+        let scoreTraits = 0;
+        if (isPremium && myProfile?.compatibility_traits && c.compatibility_traits) {
+          const traitKeys = Object.keys(myProfile.compatibility_traits || {});
+          let closeCount = 0;
+          traitKeys.forEach((key) => {
+            const a = myProfile.compatibility_traits[key];
+            const b = c.compatibility_traits[key];
+            if (typeof a === "number" && typeof b === "number" && Math.abs(a - b) <= 2) {
+              closeCount += 1;
+            }
+          });
+          scoreTraits = Math.min(1, closeCount / Math.max(1, traitKeys.length));
+        }
+
+        // Trust / profile quality
+        const verifiedBoost = (c.is_verified ? 0.4 : 0) + (c.is_personality_verified ? 0.2 : 0);
+        const photosCount = (c.photos || []).length;
+        const hasBio = !!c.bio;
+        const profileQuality = Math.min(1, (photosCount >= 3 ? 0.6 : photosCount * 0.2) + (hasBio ? 0.4 : 0));
+
+        // Weights sum ~1.4, then scaled to 40–99 later
+        const WEIGHTS = {
+          interests: 0.18,
+          values: 0.18,
+          intent: 0.18,
+          goals: 0.1,
+          age: 0.08,
+          lifestyle: 0.08,
+          location: 0.08,
+          traits: 0.12,
+          trust: 0.1,
+        };
+
+        let composite =
+          scoreInterests * WEIGHTS.interests +
+          scoreValues * WEIGHTS.values +
+          scoreIntent * WEIGHTS.intent +
+          scoreGoals * WEIGHTS.goals +
+          scoreAge * WEIGHTS.age +
+          scoreLifestyle * WEIGHTS.lifestyle +
+          scoreLocation * WEIGHTS.location +
+          scoreTraits * WEIGHTS.traits +
+          profileQuality * WEIGHTS.trust +
+          verifiedBoost * 0.05;
+
+        // Clamp composite 0–1
+        composite = Math.max(0, Math.min(1, composite));
+
+        // Map to 40–99 and add small noise
+        let score = 40 + composite * 55 + Math.random() * 4;
+        score = Math.min(99, Math.max(40, Math.round(score)));
+
+        // Build human reasons from sub-scores
         if (sharedInterests.length > 0) {
           reasons.push(`You both enjoy ${sharedInterests.slice(0, 2).join(" and ")}`);
         }
-        
-        if (myProfile?.relationship_goals && myProfile.relationship_goals === c.relationship_goals) {
-          reasons.push("Same relationship goals");
-          score += 5;
+        if (sharedValues.length > 0) {
+          reasons.push("You share important values");
         }
-        
-        if ((myProfile?.values || []).some((v) => (c.values || []).includes(v))) {
-          reasons.push("Shared core values");
-          score += 5;
+        if (scoreIntent >= 0.9) {
+          reasons.push("You have very similar dating intentions");
+        } else if (scoreIntent >= 0.5) {
+          reasons.push("Your dating intentions are compatible");
         }
-        
-        // Intent alignment bonus
-        if (myProfile?.dating_intent && myProfile.dating_intent === c.dating_intent) {
-          reasons.push("Aligned dating intentions");
-          score += 10;
+        if (scoreGoals >= 0.9) {
+          reasons.push("You want the same kind of relationship");
         }
-
-        // Age compatibility: smaller age gaps are slightly favored
-        if (myProfile?.age && c.age) {
-          const ageDiff = Math.abs(myProfile.age - c.age);
-          if (ageDiff <= 3) {
-            reasons.push("Great age compatibility");
-            score += 6;
-          } else if (ageDiff <= 7) {
-            reasons.push("Compatible age range");
-            score += 3;
-          }
+        if (scoreAge >= 0.9) {
+          reasons.push("Great age compatibility");
+        } else if (scoreAge >= 0.5) {
+          reasons.push("Comfortable age difference");
         }
-
-        // Lifestyle alignment (smoking/drinking)
-        if (myProfile?.lifestyle && c.lifestyle) {
-          const lifestyleReasons = [];
-          if (myProfile.lifestyle.smoking && myProfile.lifestyle.smoking === c.lifestyle.smoking) {
-            lifestyleReasons.push("similar smoking habits");
-          }
-          if (myProfile.lifestyle.drinking && myProfile.lifestyle.drinking === c.lifestyle.drinking) {
-            lifestyleReasons.push("similar drinking habits");
-          }
-          if (lifestyleReasons.length) {
-            reasons.push(`You have ${lifestyleReasons.join(" and ")}.`);
-            score += 3;
-          }
+        if (scoreLifestyle >= 0.5) {
+          reasons.push("You have similar lifestyle habits");
+        }
+        if (locationCompat >= 80) {
+          reasons.push("You live very close to each other");
+        } else if (locationCompat >= 60) {
+          reasons.push("You are in the same area");
+        }
+        if (scoreTraits >= 0.6) {
+          reasons.push("Your personalities are highly compatible");
+        }
+        if (c.is_verified) {
+          reasons.push("Their profile is identity-verified");
+        }
+        if (c.is_personality_verified) {
+          reasons.push("Their personality is verified");
         }
 
-        // Location compatibility (if both have coordinates)
-        const locationCompat = getLocationCompatibility(myProfile || {}, c || {});
-        if (locationCompat > 0) {
-          // Convert 0-100 into a small bump
-          score += Math.floor(locationCompat / 25); // +0 to +4
-          if (locationCompat >= 80) {
-            reasons.push("You live close to each other");
-          } else if (locationCompat >= 60) {
-            reasons.push("You are in the same area");
-          }
+        if (!reasons.length) {
+          reasons.push("You could balance each other well");
         }
-        
-        // Premium: AI compatibility traits matching
-        if (isPremium && myProfile?.compatibility_traits && c.compatibility_traits) {
-          const traitMatches = Object.keys(myProfile.compatibility_traits).filter(key => {
-            const myTrait = myProfile.compatibility_traits[key];
-            const theirTrait = c.compatibility_traits[key];
-            return myTrait && theirTrait && Math.abs(myTrait - theirTrait) < 2;
-          });
-          
-          if (traitMatches.length > 2) {
-            reasons.push("Highly compatible personalities");
-            score += 8;
-          }
-        }
-        
-        if (!reasons.length) reasons.push("Complementary personalities");
-        
-        score = Math.min(99, Math.max(40, score));
-        
+
         return {
           user_email: req.user.email,
           matched_email: c.user_email,
