@@ -1,4 +1,4 @@
-import { useRef, useEffect } from "react";
+import { useRef, useEffect, useState } from "react";
 import { Mic, MicOff, Video as VideoIcon, VideoOff, PhoneOff } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import ProfileAvatar from "@/components/ProfileAvatar";
@@ -9,12 +9,15 @@ export default function ActiveCallWindow({
   localStream, 
   isMuted, 
   isVideoOff,
+  peerEmail,
+  peerProfile,
   onToggleMute,
   onToggleVideo,
   onEndCall 
 }) {
   const remoteVideoRef = useRef(null);
   const localVideoRef = useRef(null);
+  const [duration, setDuration] = useState("00:00");
 
   // Attach remote stream to video element
   useEffect(() => {
@@ -29,6 +32,18 @@ export default function ActiveCallWindow({
       localVideoRef.current.srcObject = localStream;
     }
   }, [localStream]);
+
+  // Simple call duration timer (resets each time window mounts)
+  useEffect(() => {
+    const start = Date.now();
+    const id = setInterval(() => {
+      const totalSeconds = Math.floor((Date.now() - start) / 1000);
+      const mins = String(Math.floor(totalSeconds / 60)).padStart(2, "0");
+      const secs = String(totalSeconds % 60).padStart(2, "0");
+      setDuration(`${mins}:${secs}`);
+    }, 1000);
+    return () => clearInterval(id);
+  }, []);
 
   return (
     <div className="fixed inset-0 bg-gray-900 flex items-center justify-center z-50">
@@ -56,7 +71,11 @@ export default function ActiveCallWindow({
       )}
 
       {/* Call Controls */}
-      <div className="absolute bottom-8 left-0 right-0 flex justify-center">
+      <div className="absolute bottom-8 left-0 right-0 flex flex-col items-center gap-3">
+        {/* Status / duration */}
+        <div className="px-4 py-1 rounded-full bg-black/60 text-white text-xs font-medium">
+          {callType === "video" ? "Video call" : "Voice call"} · {duration}
+        </div>
         <div className="bg-black/60 backdrop-blur-md rounded-3xl p-4 flex gap-4">
           {/* Mute/Unmute */}
           <Button
@@ -112,12 +131,16 @@ export default function ActiveCallWindow({
       {callType === "voice" && (
         <div className="absolute top-8 left-0 right-0 flex justify-center">
           <div className="bg-black/60 backdrop-blur-md rounded-3xl p-6 text-center">
-            <ProfileAvatar profile={null} size="xl" />
+            <ProfileAvatar profile={peerProfile || null} size="xl" />
             <h2 className="text-white text-xl font-bold mt-4">
-              {callType === "video" ? "Video Call" : "Voice Call"}
+              {peerProfile?.display_name || peerEmail || "In call"}
             </h2>
             <p className="text-white/70 text-sm mt-1">
-              {isMuted && "🔇 Muted"} {isVideoOff && "📷 Camera Off"}
+              {callType === "video" ? "Video call" : "Voice call"} · {duration}
+              {(isMuted || isVideoOff) && " · "}
+              {isMuted && "Muted"}
+              {isMuted && isVideoOff && " · "}
+              {isVideoOff && "Camera off"}
             </p>
           </div>
         </div>

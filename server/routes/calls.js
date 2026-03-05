@@ -22,6 +22,23 @@ router.get("/history/:matchId", auth, async (req, res) => {
   }
 });
 
+// Get missed calls (calls where current user was receiver and did not answer)
+router.get("/missed", auth, async (req, res) => {
+  try {
+    const calls = await Call.find({
+      receiver_email: req.user.email,
+      status: "missed",
+    })
+      .sort({ createdAt: -1 })
+      .limit(50)
+      .populate("match_id", "user1_email user2_email");
+
+    res.json(calls);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // Get recent calls
 router.get("/recent", auth, async (req, res) => {
   try {
@@ -183,9 +200,14 @@ router.post("/end", auth, async (req, res) => {
       return res.status(404).json({ error: "Call not found" });
     }
 
-    call.status = "ended";
+    // If call was never accepted, mark as missed (for receiver's history)
+    if (call.status === "initiated") {
+      call.status = "missed";
+    } else {
+      call.status = "ended";
+    }
     call.ended_at = new Date();
-    
+
     // Calculate duration
     if (call.started_at) {
       call.duration = Math.floor((call.ended_at - call.started_at) / 1000);
@@ -193,7 +215,7 @@ router.post("/end", auth, async (req, res) => {
 
     await call.save();
 
-    res.json({ message: "Call ended", duration: call.duration });
+    res.json({ message: "Call ended", duration: call.duration, status: call.status });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

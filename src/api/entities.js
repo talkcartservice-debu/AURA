@@ -93,6 +93,7 @@ export const blindDateService = {
 export const callService = {
   getHistory: (matchId) => api.get(`/calls/history/${matchId}`).then((r) => r.data),
   getRecent: () => api.get("/calls/recent").then((r) => r.data),
+  getMissed: () => api.get("/calls/missed").then((r) => r.data),
   initiate: (data) => api.post("/calls/initiate", data).then((r) => r.data),
   accept: (data) => api.post("/calls/accept", data).then((r) => r.data),
   reject: (data) => api.post("/calls/reject", data).then((r) => r.data),

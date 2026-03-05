@@ -1,5 +1,6 @@
+import "@/polyfills/crypto";
 import { useState, useRef, useCallback } from "react";
-import Peer from "simple-peer";
+import SimplePeer from "simple-peer/simplepeer.min.js";
 import { useSocket } from "./useSocket";
 import { callService } from "@/api/entities";
 import { toast } from "sonner";
@@ -23,6 +24,9 @@ export function useWebRTC() {
   const [isVideoOff, setIsVideoOff] = useState(false);
   const peerRef = useRef(null);
   const localStreamRef = useRef(null);
+  const [activePeerEmail, setActivePeerEmail] = useState(null);
+  const callIdRef = useRef(null);
+  const callTimeoutRef = useRef(null);
 
   // Get user media (camera/microphone)
   const getMedia = useCallback(async (type) => {
@@ -49,7 +53,30 @@ export function useWebRTC() {
       peerRef.current.destroy();
     }
 
-    const peer = new Peer({
+    // Ensure crypto.getRandomValues exists for simple-peer/randombytes
+    try {
+      if (typeof globalThis !== "undefined") {
+        const g = globalThis;
+        if (!g.crypto) {
+          g.crypto = {};
+        }
+        if (typeof g.crypto.getRandomValues !== "function") {
+          g.crypto.getRandomValues = function getRandomValues(arr) {
+            if (!(arr instanceof Uint8Array)) {
+              throw new TypeError("Expected Uint8Array");
+            }
+            for (let i = 0; i < arr.length; i += 1) {
+              arr[i] = Math.floor(Math.random() * 256);
+            }
+            return arr;
+          };
+        }
+      }
+    } catch (e) {
+      console.warn("Could not polyfill crypto.getRandomValues for WebRTC:", e);
+    }
+
+    const peer = new SimplePeer({
       initiator,
       trickle: true,
       config: RTC_CONFIG,
@@ -69,6 +96,11 @@ export function useWebRTC() {
     peer.on("connect", () => {
       console.log("Peer connected!");
       setIsInCall(true);
+      // Clear any "no answer" timeout once the peer connection is established
+      if (callTimeoutRef.current) {
+        clearTimeout(callTimeoutRef.current);
+        callTimeoutRef.current = null;
+      }
     });
 
     peer.on("error", (err) => {
@@ -86,62 +118,148 @@ export function useWebRTC() {
   }, []);
 
   // Start a call
-  const startCall = useCallback(async (receiverEmail, type = "video") => {
-    try {
-      setIsCalling(true);
-      setCallType(type);
+  const startCall = useCallback(
+    async (matchId, receiverEmail, type = "video") => {
+      if (!matchId || !receiverEmail) {
+        toast.error("Unable to start call. Missing match or receiver.");
+        return;
+      }
 
-      // Get media stream
-      const stream = await getMedia(type);
+      try {
+        setIsCalling(true);
+        setCallType(type);
+        setActivePeerEmail(receiverEmail);
 
-      // Initialize peer as initiator
-      const peer = initializePeer(true, stream);
+        // Create call record first so we have call_id
+        let callId = null;
+        try {
+          const initRes = await callService.initiate({
+            match_id: matchId,
+            type,
+          });
+          callId = initRes?.call_id || null;
+        } catch (error) {
+          const resp = error?.response;
+          const data = resp?.data;
 
-      // Set up signal handler
-      peer.on("signal", (data) => {
-        emit("call_initiate", {
-          receiver_email: receiverEmail,
-          call_type: type,
-          offer: data,
-        }, (response) => {
-          if (!response.success) {
-            toast.error("User unavailable");
-            endCall();
+          // If there's an active call already, try to end it once and retry
+          if (resp?.status === 400 && data?.call_id) {
+            try {
+              await callService.end({ call_id: data.call_id });
+            } catch (endErr) {
+              console.error("Failed to clear existing call:", endErr);
+            }
+            const retryRes = await callService.initiate({
+              match_id: matchId,
+              type,
+            });
+            callId = retryRes?.call_id || null;
+          } else {
+            throw error;
+          }
+        }
+
+        callIdRef.current = callId;
+
+        // Get media stream
+        const stream = await getMedia(type);
+
+        // Initialize peer as initiator
+        const peer = initializePeer(true, stream);
+
+        // Set up signal handler for offer + ICE
+        peer.on("signal", (data) => {
+          if (data?.type === "offer") {
+            emit(
+              "call_initiate",
+              {
+                receiver_email: receiverEmail,
+                call_type: type,
+                offer: data,
+                call_id: callIdRef.current,
+              },
+              (response) => {
+                if (!response?.success) {
+                  toast.error(response?.error || "User unavailable");
+                  endCall();
+                }
+              }
+            );
+          } else {
+            // Treat other signals as ICE candidates
+            emit("ice_candidate", {
+              target_email: receiverEmail,
+              candidate: data,
+            });
           }
         });
-      });
 
-      // Create call record in database
-      await callService.initiate({
-        match_id: receiverEmail, // Should be actual match ID
-        type,
-      });
+        // Start "no answer" timeout (e.g., 30 seconds)
+        if (callTimeoutRef.current) {
+          clearTimeout(callTimeoutRef.current);
+        }
+        callTimeoutRef.current = setTimeout(() => {
+          callTimeoutRef.current = null;
+          if (!isInCall) {
+            toast.info("No answer. Ending call.");
+            endCall();
+          }
+        }, 30000);
 
-      toast.success(`Calling ${receiverEmail}...`);
-    } catch (error) {
-      console.error("Error starting call:", error);
-      setIsCalling(false);
-      throw error;
-    }
-  }, [getMedia, initializePeer, emit]);
+        toast.success(`Calling ${receiverEmail}...`);
+      } catch (error) {
+        console.error("Error starting call:", error);
+        let message = error?.response?.data?.error || error.message || "Failed to start call";
+        if (!error?.response && (error?.code === "ERR_NETWORK" || error?.message === "Network Error")) {
+          message = "Cannot reach server. Make sure the backend is running (npm run dev in server/).";
+        }
+        toast.error(message);
+        setIsCalling(false);
+        setActivePeerEmail(null);
+        callIdRef.current = null;
+        if (callTimeoutRef.current) {
+          clearTimeout(callTimeoutRef.current);
+          callTimeoutRef.current = null;
+        }
+        throw error;
+      }
+    },
+    [getMedia, initializePeer, emit]
+  );
 
   // Accept incoming call
   const acceptCall = useCallback(async (fromEmail, callType) => {
     try {
       setCallType(callType);
+      setActivePeerEmail(fromEmail);
       const stream = await getMedia(callType);
       const peer = initializePeer(false, stream);
 
+      // Handle answer + ICE back to initiator
       peer.on("signal", (data) => {
-        emit("call_accept", {
-          initiator_email: fromEmail,
-          answer: data,
-        });
+        if (data?.type === "answer") {
+          emit("call_accept", {
+            initiator_email: fromEmail,
+            answer: data,
+          });
+        } else {
+          emit("ice_candidate", {
+            target_email: fromEmail,
+            candidate: data,
+          });
+        }
       });
+
+      // Apply remote offer from incomingCall
+      const offer = incomingCall?.offer;
+      if (offer) {
+        peer.signal(offer);
+      }
 
       // Accept call in database
       const callData = incomingCall;
       if (callData?.call_id) {
+        callIdRef.current = callData.call_id;
         await callService.accept({ call_id: callData.call_id });
       }
 
@@ -177,6 +295,14 @@ export function useWebRTC() {
   // End call
   const endCall = useCallback(async () => {
     try {
+      if (callTimeoutRef.current) {
+        clearTimeout(callTimeoutRef.current);
+        callTimeoutRef.current = null;
+      }
+      // Notify remote peer
+      if (activePeerEmail) {
+        emit("call_end", { target_email: activePeerEmail });
+      }
       // Destroy peer connection
       if (peerRef.current) {
         peerRef.current.destroy();
@@ -197,12 +323,24 @@ export function useWebRTC() {
       setCallType(null);
       setIsMuted(false);
       setIsVideoOff(false);
+      setActivePeerEmail(null);
+
+      // Update call record in database
+      const callId = callIdRef.current;
+      callIdRef.current = null;
+      if (callId) {
+        try {
+          await callService.end({ call_id: callId });
+        } catch (err) {
+          console.error("Error ending call on server:", err);
+        }
+      }
 
       toast.info("Call ended");
     } catch (error) {
       console.error("Error ending call:", error);
     }
-  }, []);
+  }, [activePeerEmail, emit]);
 
   // Toggle mute
   const toggleMute = useCallback(() => {
@@ -233,6 +371,13 @@ export function useWebRTC() {
     }
   }, []);
 
+  // Generic remote signal handler (offer/answer/candidate)
+  const handleRemoteSignal = useCallback((signal) => {
+    if (peerRef.current && signal) {
+      peerRef.current.signal(signal);
+    }
+  }, []);
+
   return {
     // State
     isCalling,
@@ -243,6 +388,7 @@ export function useWebRTC() {
     localStream,
     isMuted,
     isVideoOff,
+    activePeerEmail,
 
     // Actions
     startCall,
@@ -252,8 +398,10 @@ export function useWebRTC() {
     toggleMute,
     toggleVideo,
     handleIceCandidate,
+    handleRemoteSignal,
 
     // Utilities
     getMedia,
+    setIncomingCall,
   };
 }

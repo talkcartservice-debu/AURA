@@ -67,15 +67,24 @@ router.get("/daily", auth, async (req, res) => {
         intentQuery = { dating_intent: { $in: compatibleIntents } };
       }
 
-      const rawCandidates = await UserProfile.find({
+      let rawCandidates = await UserProfile.find({
         user_email: { $nin: excludeEmails },
         profile_complete: true,
         is_incognito: { $ne: true },
         ...intentQuery,
       });
 
+      // If intent filter is too strict and returns nothing, relax it once
+      if (rawCandidates.length === 0 && Object.keys(intentQuery).length > 0) {
+        rawCandidates = await UserProfile.find({
+          user_email: { $nin: excludeEmails },
+          profile_complete: true,
+          is_incognito: { $ne: true },
+        });
+      }
+
       // Apply location-based filtering when we have coordinates
-      const candidatesWithLocation = rawCandidates.filter((c) => {
+      let candidatesWithLocation = rawCandidates.filter((c) => {
         if (!myProfile?.location_coordinates || !c.location_coordinates) {
           // If either user lacks location, keep them (don't over-filter)
           return true;
@@ -88,6 +97,11 @@ router.get("/daily", auth, async (req, res) => {
         );
         return dist <= baseRadiusKm;
       });
+
+      // If radius is too strict and yields nothing, relax radius once
+      if (candidatesWithLocation.length === 0 && rawCandidates.length > 0) {
+        candidatesWithLocation = rawCandidates;
+      }
 
       // Limit final candidate pool size
       const candidates = candidatesWithLocation.slice(0, isPremium ? 20 : 10); // Premium users get more matches
@@ -156,7 +170,19 @@ router.get("/daily", auth, async (req, res) => {
         const hasBio = !!c.bio;
         const profileQuality = Math.min(1, (photosCount >= 3 ? 0.6 : photosCount * 0.2) + (hasBio ? 0.4 : 0));
 
-        // Weights sum ~1.4, then scaled to 40–99 later
+        // Recency / activity (use updatedAt when available)
+        let recencyScore = 0.3;
+        if (c.updatedAt) {
+          const now = Date.now();
+          const updated = new Date(c.updatedAt).getTime();
+          const days = (now - updated) / (1000 * 60 * 60 * 24);
+          if (days <= 3) recencyScore = 1;
+          else if (days <= 7) recencyScore = 0.8;
+          else if (days <= 30) recencyScore = 0.5;
+          else recencyScore = 0.2;
+        }
+
+        // Weights sum ~1.5, then scaled to 40–99 later
         const WEIGHTS = {
           interests: 0.18,
           values: 0.18,
@@ -166,7 +192,8 @@ router.get("/daily", auth, async (req, res) => {
           lifestyle: 0.08,
           location: 0.08,
           traits: 0.12,
-          trust: 0.1,
+          trust: 0.08,
+          recency: 0.12,
         };
 
         let composite =
@@ -179,6 +206,7 @@ router.get("/daily", auth, async (req, res) => {
           scoreLocation * WEIGHTS.location +
           scoreTraits * WEIGHTS.traits +
           profileQuality * WEIGHTS.trust +
+          recencyScore * WEIGHTS.recency +
           verifiedBoost * 0.05;
 
         // Clamp composite 0–1
@@ -225,6 +253,11 @@ router.get("/daily", auth, async (req, res) => {
         if (c.is_personality_verified) {
           reasons.push("Their personality is verified");
         }
+        if (recencyScore >= 0.8) {
+          reasons.push("They've been active recently");
+        } else if (recencyScore >= 0.5) {
+          reasons.push("They were active not too long ago");
+        }
 
         if (!reasons.length) {
           reasons.push("You could balance each other well");
@@ -240,7 +273,12 @@ router.get("/daily", auth, async (req, res) => {
         };
       });
 
-      if (newMatches.length) matches = await DailyMatch.insertMany(newMatches);
+      if (newMatches.length) {
+        const sorted = [...newMatches].sort(
+          (a, b) => (b.compatibility_score || 0) - (a.compatibility_score || 0)
+        );
+        matches = await DailyMatch.insertMany(sorted);
+      }
     }
 
     res.json(matches);

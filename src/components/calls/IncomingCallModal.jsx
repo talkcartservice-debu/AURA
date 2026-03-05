@@ -2,7 +2,7 @@ import { Phone, Video, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import ProfileAvatar from "@/components/ProfileAvatar";
 
-export default function IncomingCallModal({ incomingCall, onAccept, onReject }) {
+export default function IncomingCallModal({ incomingCall, peerProfile, onAccept, onReject }) {
   if (!incomingCall) return null;
 
   const isVideoCall = incomingCall.call_type === "video";
@@ -13,13 +13,13 @@ export default function IncomingCallModal({ incomingCall, onAccept, onReject }) 
         {/* Header */}
         <div className="text-center mb-6">
           <div className="flex justify-center mb-4">
-            <ProfileAvatar profile={null} size="xl" />
+            <ProfileAvatar profile={peerProfile || null} size="xl" />
           </div>
           <h2 className="text-2xl font-bold text-gray-900 mb-1">
             {isVideoCall ? "📹 Video Call" : "📞 Voice Call"}
           </h2>
           <p className="text-gray-600">
-            {incomingCall.from_email} is calling...
+            {(peerProfile?.display_name || incomingCall.from_email) + " is calling..."}
           </p>
         </div>
 

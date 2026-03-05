@@ -48,7 +48,7 @@ export function initializeSocketIO(httpServer) {
 
     // Handle call initiation
     socket.on("call_initiate", (data, callback) => {
-      const { receiver_email, call_type, offer } = data;
+      const { receiver_email, call_type, offer, call_id } = data;
       const sender_email = socketToUser.get(socket.id);
 
       if (!sender_email) {
@@ -69,6 +69,7 @@ export function initializeSocketIO(httpServer) {
           from_email: sender_email,
           call_type,
           offer,
+          call_id,
           timestamp: new Date().toISOString(),
         });
       });

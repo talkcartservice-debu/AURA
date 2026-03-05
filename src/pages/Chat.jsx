@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
-import { messageService, matchService, profileService } from "@/api/entities";
+import { messageService, matchService, profileService, callService } from "@/api/entities";
 import { useAuth } from "@/lib/AuthContext";
 import ProfileAvatar from "@/components/ProfileAvatar";
 import OnlineStatusBadge from "@/components/ui/OnlineStatusBadge";
@@ -12,6 +12,7 @@ import { useNavigate } from "react-router-dom";
 import CallButtons from "@/components/calls/CallButtons";
 import { toast } from "sonner";
 import { useSocket } from "@/hooks/useSocket";
+import { useCallContext } from "@/components/calls/CallProvider";
 
 export default function Chat() {
   const { matchId } = useParams();
@@ -29,13 +30,24 @@ export default function Chat() {
   const { on, off, emit } = useSocket();
   const [isPartnerTyping, setIsPartnerTyping] = useState(false);
   const typingTimeoutRef = useRef(null);
+  const callContext = useCallContext();
 
   const { data: matches } = useQuery({ queryKey: ["mutualMatches"], queryFn: matchService.getMutual });
+  const { data: missedCalls } = useQuery({
+    queryKey: ["missedCalls"],
+    queryFn: callService.getMissed,
+    refetchOnWindowFocus: true,
+  });
   const { data: messages, refetch } = useQuery({
     queryKey: ["messages", matchId],
     queryFn: () => messageService.getByMatch(matchId),
     enabled: !!matchId,
     refetchInterval: 3000,
+  });
+  const { data: callHistory } = useQuery({
+    queryKey: ["callHistory", matchId],
+    queryFn: () => callService.getHistory(matchId),
+    enabled: !!matchId,
   });
 
   // Currently active match (for header info / presence)
@@ -47,22 +59,35 @@ export default function Chat() {
     : null;
   const activeProfile = activeOtherEmail ? profiles[activeOtherEmail] : null;
 
-  // Preload profiles for matched users to show display names/avatars
+  // Preload profiles for matched users and missed-call initiators
   useEffect(() => {
-    if (!matches || !user?.email) return;
-    matches.forEach(async (m) => {
-      const otherEmail =
-        m.user1_email === user.email ? m.user2_email : m.user1_email;
-      if (!profiles[otherEmail]) {
-        try {
-          const p = await profileService.getByEmail(otherEmail);
-          setProfiles((prev) => ({ ...prev, [otherEmail]: p }));
-        } catch {
-          // Ignore profile fetch errors for chat list
+    if (!user?.email) return;
+    const emailsToLoad = new Set();
+
+    if (matches) {
+      matches.forEach((m) => {
+        const otherEmail =
+          m.user1_email === user.email ? m.user2_email : m.user1_email;
+        if (!profiles[otherEmail]) emailsToLoad.add(otherEmail);
+      });
+    }
+    if (missedCalls) {
+      missedCalls.forEach((call) => {
+        if (call.initiator_email && !profiles[call.initiator_email]) {
+          emailsToLoad.add(call.initiator_email);
         }
+      });
+    }
+
+    emailsToLoad.forEach(async (email) => {
+      try {
+        const p = await profileService.getByEmail(email);
+        setProfiles((prev) => ({ ...prev, [email]: p }));
+      } catch {
+        // Ignore profile fetch errors
       }
     });
-  }, [matches, user?.email, profiles]);
+  }, [matches, missedCalls, user?.email, profiles]);
 
   // Mark messages as read when viewing chat
   useEffect(() => {
@@ -131,13 +156,71 @@ export default function Chat() {
   }, [msg, matchId, activeOtherEmail, emit]);
 
   if (!matchId) {
+    const missedList = missedCalls || [];
     return (
       <div className="max-w-lg mx-auto p-4">
         <h1 className="text-2xl font-black text-gray-900 mb-6">Chat</h1>
+
+        {/* Missed calls */}
+        {missedList.length > 0 && (
+          <div className="mb-6">
+            <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-2">
+              Missed calls
+            </h2>
+            <div className="space-y-2">
+              {missedList.map((call) => {
+                const matchIdFromCall = call.match_id?._id ?? call.match_id;
+                const hasMatch = !!matchIdFromCall;
+                const callerEmail = call.initiator_email;
+                const profile = profiles[callerEmail];
+                const callTypeLabel = call.type === "video" ? "Video" : "Voice";
+                const dateLabel = call.createdAt
+                  ? new Date(call.createdAt).toLocaleDateString(undefined, {
+                      month: "short",
+                      day: "numeric",
+                      hour: "2-digit",
+                      minute: "2-digit",
+                    })
+                  : "";
+                return (
+                  <div
+                    key={call._id}
+                    className="flex items-center gap-3 p-3 bg-rose-50 border border-rose-100 rounded-2xl"
+                  >
+                    <ProfileAvatar profile={profile || null} size="md" />
+                    <div className="flex-1 min-w-0">
+                      <p className="font-semibold text-gray-900 text-sm truncate">
+                        {profile?.display_name || callerEmail}
+                      </p>
+                      <p className="text-xs text-rose-600">
+                        Missed {callTypeLabel.toLowerCase()} call · {dateLabel}
+                      </p>
+                    </div>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="rounded-xl shrink-0"
+                      disabled={!hasMatch}
+                      onClick={() => hasMatch && navigate(`/chat/${matchIdFromCall}`)}
+                    >
+                      Chat
+                    </Button>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
         {!matches || matches.length === 0 ? (
           <p className="text-gray-400 text-center py-20">No matches yet. Start discovering!</p>
         ) : (
           <div className="space-y-2">
+            {missedList.length > 0 && (
+              <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-2">
+                Messages
+              </h2>
+            )}
             {matches.map((m) => {
               const otherEmail = m.user1_email === user?.email ? m.user2_email : m.user1_email;
               const profile = profiles[otherEmail];
@@ -256,6 +339,42 @@ export default function Chat() {
               <span className="text-xs text-gray-500 truncate max-w-[12rem]">
                 {activeOtherEmail}
               </span>
+            )}
+            {callContext?.isInCall && (
+              <span className="text-[11px] text-emerald-500 font-medium">
+                In call
+              </span>
+            )}
+            {/* Call history summary for this match */}
+            {callHistory && callHistory.length > 0 && (
+              <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 mt-0.5">
+                {(() => {
+                  const missedCount = callHistory.filter((c) => c.status === "missed").length;
+                  const lastCall = callHistory[0];
+                  const lastLabel =
+                    lastCall.status === "missed"
+                      ? "Missed"
+                      : lastCall.status === "ended" || lastCall.status === "accepted"
+                        ? (lastCall.duration ? `${Math.floor(lastCall.duration / 60)}m` : "Called")
+                        : lastCall.status;
+                  return (
+                    <>
+                      {missedCount > 0 && (
+                        <span className="text-[10px] font-medium text-rose-600 bg-rose-50 px-1.5 py-0.5 rounded">
+                          {missedCount} missed
+                        </span>
+                      )}
+                      <span className="text-[10px] text-gray-400">
+                        Last: {lastLabel} {lastCall.type === "video" ? "video" : "voice"} ·{" "}
+                        {new Date(lastCall.createdAt).toLocaleDateString(undefined, {
+                          month: "short",
+                          day: "numeric",
+                        })}
+                      </span>
+                    </>
+                  );
+                })()}
+              </div>
             )}
           </div>
         </div>
