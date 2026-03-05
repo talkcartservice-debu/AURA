@@ -167,7 +167,9 @@ export default function MyProfile() {
               {profile?.is_personality_verified && <Brain className="w-4 h-4 text-purple-500" />}
               {profile?.is_hot_love && <Flame className="w-4 h-4 text-orange-500" />}
             </h2>
-            <p className="text-sm text-gray-400">{user?.email}</p>
+            {user?.username && (
+              <p className="text-sm text-gray-400">@{user.username}</p>
+            )}
             {profile?.location && (
               <div className="flex items-center justify-center gap-1 text-sm text-gray-500 mt-1">
                 <MapPin className="w-3 h-3" /> {profile.location}

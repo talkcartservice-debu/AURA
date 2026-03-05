@@ -7,10 +7,11 @@ import ProfileAvatar from "@/components/ProfileAvatar";
 import OnlineStatusBadge from "@/components/ui/OnlineStatusBadge";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Send, Loader2, ArrowLeft } from "lucide-react";
+import { Send, Loader2, ArrowLeft, Check, CheckCheck } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import CallButtons from "@/components/calls/CallButtons";
 import { toast } from "sonner";
+import { useSocket } from "@/hooks/useSocket";
 
 export default function Chat() {
   const { matchId } = useParams();
@@ -25,6 +26,9 @@ export default function Chat() {
   const [forwardSourceMessage, setForwardSourceMessage] = useState(null);
   const [forwardTargetId, setForwardTargetId] = useState("");
   const bottomRef = useRef(null);
+  const { on, off, emit } = useSocket();
+  const [isPartnerTyping, setIsPartnerTyping] = useState(false);
+  const typingTimeoutRef = useRef(null);
 
   const { data: matches } = useQuery({ queryKey: ["mutualMatches"], queryFn: matchService.getMutual });
   const { data: messages, refetch } = useQuery({
@@ -68,6 +72,63 @@ export default function Chat() {
   }, [matchId]);
 
   useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: "smooth" }); }, [messages]);
+
+  // Listen for typing indicators from partner
+  useEffect(() => {
+    function handleTyping(payload) {
+      if (!payload) return;
+      const { from_email, match_id } = payload;
+      if (from_email === activeOtherEmail && match_id === matchId) {
+        setIsPartnerTyping(true);
+        if (typingTimeoutRef.current) {
+          clearTimeout(typingTimeoutRef.current);
+        }
+        typingTimeoutRef.current = setTimeout(() => {
+          setIsPartnerTyping(false);
+        }, 2500);
+      }
+    }
+
+    function handleStopTyping(payload) {
+      const { from_email, match_id } = payload || {};
+      if (from_email === activeOtherEmail && match_id === matchId) {
+        setIsPartnerTyping(false);
+        if (typingTimeoutRef.current) {
+          clearTimeout(typingTimeoutRef.current);
+          typingTimeoutRef.current = null;
+        }
+      }
+    }
+
+    on("typing", handleTyping);
+    on("stop_typing", handleStopTyping);
+
+    return () => {
+      off("typing");
+      off("stop_typing");
+      if (typingTimeoutRef.current) {
+        clearTimeout(typingTimeoutRef.current);
+        typingTimeoutRef.current = null;
+      }
+    };
+  }, [on, off, activeOtherEmail, matchId]);
+
+  // Emit typing events when user is typing
+  useEffect(() => {
+    if (!matchId || !activeOtherEmail) return;
+    if (!msg.trim()) {
+      emit("stop_typing", { target_email: activeOtherEmail, match_id: matchId });
+      return;
+    }
+
+    emit("typing", { target_email: activeOtherEmail, match_id: matchId });
+
+    const timeout = setTimeout(() => {
+      emit("stop_typing", { target_email: activeOtherEmail, match_id: matchId });
+    }, 2000);
+
+    return () => clearTimeout(timeout);
+  }, [msg, matchId, activeOtherEmail, emit]);
 
   if (!matchId) {
     return (
@@ -231,6 +292,18 @@ export default function Chat() {
                     })}
                     {m.edited ? " · edited" : ""}
                   </span>
+                  {isOwn && (
+                    <span className="flex items-center gap-1">
+                      {m.is_read ? (
+                        <>
+                          <CheckCheck className="w-3 h-3 text-sky-400" />
+                          <span className="hidden xs:inline">Seen</span>
+                        </>
+                      ) : (
+                        <Check className="w-3 h-3 text-gray-300" />
+                      )}
+                    </span>
+                  )}
                 </div>
               </div>
             </div>
@@ -238,6 +311,12 @@ export default function Chat() {
         })}
         <div ref={bottomRef} />
       </div>
+      {/* Typing indicator */}
+      {isPartnerTyping && (
+        <div className="px-4 pb-1 text-xs text-gray-500">
+          {activeProfile?.display_name || "They"} is typing...
+        </div>
+      )}
       {/* Message action bar */}
       {selectedMessage && (
         <div className="px-4 pb-2 border-t border-gray-100 bg-white flex flex-wrap items-center gap-2 text-xs">

@@ -147,6 +147,35 @@ export function initializeSocketIO(httpServer) {
       });
     });
 
+    // Typing indicators
+    socket.on("typing", (data) => {
+      const from_email = socketToUser.get(socket.id);
+      if (!from_email) return;
+      const { target_email, match_id } = data || {};
+      const targetSockets = onlineUsers.get(target_email);
+      if (!targetSockets) return;
+      targetSockets.forEach((socketId) => {
+        io.to(socketId).emit("typing", {
+          from_email,
+          match_id,
+        });
+      });
+    });
+
+    socket.on("stop_typing", (data) => {
+      const from_email = socketToUser.get(socket.id);
+      if (!from_email) return;
+      const { target_email, match_id } = data || {};
+      const targetSockets = onlineUsers.get(target_email);
+      if (!targetSockets) return;
+      targetSockets.forEach((socketId) => {
+        io.to(socketId).emit("stop_typing", {
+          from_email,
+          match_id,
+        });
+      });
+    });
+
     // Handle disconnect
     socket.on("disconnect", () => {
       const email = socketToUser.get(socket.id);

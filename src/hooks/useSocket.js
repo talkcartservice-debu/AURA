@@ -106,6 +106,19 @@ export function useSocket() {
       }
     });
 
+    // Typing indicators
+    socketRef.current.on("typing", (data) => {
+      if (listenersRef.current.typing) {
+        listenersRef.current.typing(data);
+      }
+    });
+
+    socketRef.current.on("stop_typing", (data) => {
+      if (listenersRef.current.stop_typing) {
+        listenersRef.current.stop_typing(data);
+      }
+    });
+
     // Cleanup on disconnect
     return () => {
       if (socketRef.current) {
