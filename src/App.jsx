@@ -56,7 +56,7 @@ export default function App() {
         <Route path="/verification" element={<Verification />} />
         <Route path="/premium" element={<Premium />} />
         <Route path="/privacy" element={<PrivacySettings />} />
-        <Route path="/hot-love" element={<HotLove />} />
+        <Route path="/silver" element={<HotLove />} />
         <Route path="/blind-date" element={<BlindDatePage />} />
       </Route>
       <Route path="*" element={<PageNotFound />} />

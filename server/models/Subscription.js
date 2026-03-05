@@ -5,7 +5,7 @@ const subscriptionSchema = new mongoose.Schema(
     user_email: { type: String, required: true, unique: true },
     plan: { 
       type: String, 
-      enum: ["free", "premium", "hot_love"], 
+      enum: ["free", "premium"], 
       default: "free" 
     },
     // Casual Connection Add-On (requires Premium)

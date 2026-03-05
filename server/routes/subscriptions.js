@@ -21,9 +21,6 @@ const PRICING = {
     biannual: 4499000,     // ₦44,999
     annual: 7999000,       // ₦79,999
   },
-  hot_love: {
-    monthly: 500000,       // ₦5,000
-  },
 };
 
 // Get current subscription
@@ -56,13 +53,34 @@ router.post("/initialize", auth, async (req, res) => {
     
     // Determine amount based on plan and cycle
     let amount;
+
     if (plan === "premium" && PRICING.premium[billing_cycle]) {
-      amount = PRICING.premium[billing_cycle];
-      if (add_casual && PRICING.casual_addon[billing_cycle]) {
-        amount += PRICING.casual_addon[billing_cycle];
+      // Check if user already has an active premium (Silver) subscription
+      const existingSub = await Subscription.findOne({
+        user_email: req.user.email,
+        plan: "premium",
+        is_active: true,
+      });
+
+      if (add_casual) {
+        // Gold-only purchase for existing Silver users
+        if (existingSub) {
+          if (!PRICING.casual_addon[billing_cycle]) {
+            return res.status(400).json({ error: "Invalid billing cycle for Gold Premium" });
+          }
+          amount = PRICING.casual_addon[billing_cycle];
+        } else {
+          // Bundle: first time Silver + Gold together
+          if (!PRICING.casual_addon[billing_cycle]) {
+            return res.status(400).json({ error: "Invalid billing cycle for Gold Premium" });
+          }
+          amount =
+            PRICING.premium[billing_cycle] + PRICING.casual_addon[billing_cycle];
+        }
+      } else {
+        // Silver-only purchase
+        amount = PRICING.premium[billing_cycle];
       }
-    } else if (plan === "hot_love") {
-      amount = PRICING.hot_love.monthly;
     } else {
       return res.status(400).json({ error: "Invalid plan or billing cycle" });
     }
@@ -169,10 +187,11 @@ router.get("/verify/:reference", auth, async (req, res) => {
       amount: amount,
     };
 
-    // Add Casual Add-On if selected
+    // Premium + Casual Add-On + AI coaching when requested
     if (add_casual) {
       updateData.casual_addon = true;
       updateData.casual_addon_expires_at = expires;
+      updateData.ai_coaching_enabled = true;
     }
 
     const sub = await Subscription.findOneAndUpdate(
@@ -183,8 +202,8 @@ router.get("/verify/:reference", auth, async (req, res) => {
 
     // Update UserProfile with premium features
     const profileUpdate = {};
-    if (plan === "premium" || plan === "hot_love") {
-      profileUpdate.is_hot_love = true;
+    if (plan === "premium") {
+      profileUpdate.is_hot_love = !!add_casual;
     }
     await UserProfile.findOneAndUpdate(
       { user_email: req.user.email },
@@ -193,7 +212,7 @@ router.get("/verify/:reference", auth, async (req, res) => {
 
     res.json({ 
       subscription: sub, 
-      message: `Payment verified! Welcome to ${plan === "hot_love" ? "Hot Love" : "Premium"}! ❤️‍🔥` 
+      message: `Payment verified! Welcome to ${add_casual ? "Premium + Casual" : "Premium"}! ❤️‍🔥` 
     });
   } catch (err) {
     console.error("Paystack verify error:", err.response?.data || err.message);

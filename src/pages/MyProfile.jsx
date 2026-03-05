@@ -104,8 +104,8 @@ export default function MyProfile() {
 
   async function handleToggleIncognito() {
     if (!isHotLove) {
-      toast.error("Incognito mode is a Hot Love premium feature");
-      navigate("/hot-love");
+      toast.error("Incognito mode is a Gold Premium feature");
+      navigate("/silver");
       return;
     }
     setTogglingIncognito(true);
@@ -157,6 +157,19 @@ export default function MyProfile() {
               </label>
             </div>
           </div>
+
+          {/* Premium CTA under avatar */}
+          {(!sub || sub.plan === "free") && (
+            <div className="flex justify-center mb-4">
+              <Button
+                size="sm"
+                onClick={() => navigate("/premium")}
+                className="rounded-full px-4 h-8 bg-gradient-to-r from-purple-600 to-rose-500 text-white text-xs font-semibold"
+              >
+                Go Premium
+              </Button>
+            </div>
+          )}
 
           {/* Name & Badges */}
           <div className="text-center mb-4">
@@ -339,19 +352,13 @@ export default function MyProfile() {
 
       {/* Premium Status Card */}
       {sub && sub.plan !== "free" && (
-        <div className={`rounded-2xl p-4 border-2 ${
-          sub.plan === "premium" 
-            ? "bg-gradient-to-br from-purple-50 to-rose-50 border-purple-200" 
-            : "bg-rose-50 border-rose-200"
-        }`}>
+        <div className={`rounded-2xl p-4 border-2 bg-gradient-to-br from-purple-50 to-rose-50 border-purple-200`}>
           <div className="flex items-center justify-between mb-2">
             <div className="flex items-center gap-2">
-              {sub.plan === "premium" ? (
-                <Crown className="w-5 h-5 text-purple-600" />
-              ) : (
-                <Flame className="w-5 h-5 text-rose-600" />
-              )}
-              <span className="font-bold text-gray-900 capitalize">{sub.plan === "hot_love" ? "Hot Love" : sub.plan}</span>
+              <Crown className="w-5 h-5 text-purple-600" />
+              <span className="font-bold text-gray-900 capitalize">
+                {sub.plan === "premium" && sub.casual_addon ? "Gold Premium" : "Silver Premium"}
+              </span>
             </div>
             {sub.is_active ? (
               <span className="text-xs font-medium text-green-600 bg-green-50 px-2 py-1 rounded-full">Active</span>

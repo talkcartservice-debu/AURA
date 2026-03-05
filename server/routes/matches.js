@@ -19,7 +19,7 @@ router.get("/daily", auth, async (req, res) => {
     const Subscription = (await import('../models/Subscription.js')).default;
     const mySub = await Subscription.findOne({ user_email: req.user.email });
     
-    const isPremium = mySub && (mySub.plan === "premium" || mySub.plan === "hot_love");
+    const isPremium = mySub && mySub.plan === "premium";
     const hasCasualAddon = mySub && mySub.casual_addon && new Date(mySub.casual_addon_expires_at) > new Date();
     
     // Determine matching intent

@@ -35,7 +35,9 @@ export default function Premium() {
   const qc = useQueryClient();
   const navigate = useNavigate();
   const { data: sub, refetch } = useQuery({ queryKey: ["subscription"], queryFn: subscriptionService.get });
-  const [loading, setLoading] = useState(false);
+  const [loadingSubscribe, setLoadingSubscribe] = useState(false);
+  const [loadingBoost, setLoadingBoost] = useState(false);
+  const [loadingSuperLikes, setLoadingSuperLikes] = useState(false);
   const [verifying, setVerifying] = useState(false);
   const [billingCycle, setBillingCycle] = useState("monthly");
   const [selectedPlan, setSelectedPlan] = useState(null);
@@ -67,7 +69,7 @@ export default function Premium() {
   }
 
   async function handleSubscribe(plan) {
-    setLoading(true);
+    setLoadingSubscribe(true);
     try {
       const { authorization_url } = await subscriptionService.initialize({
         plan,
@@ -78,29 +80,29 @@ export default function Premium() {
       window.location.href = authorization_url;
     } catch {
       toast.error("Failed to initialize payment. Please try again.");
-      setLoading(false);
+      setLoadingSubscribe(false);
     }
   }
 
   async function handlePurchaseBoost() {
-    setLoading(true);
+    setLoadingBoost(true);
     try {
       const { authorization_url } = await subscriptionService.purchaseBoosts(1);
       window.location.href = authorization_url;
     } catch {
       toast.error("Failed to initialize boost purchase. Please try again.");
-      setLoading(false);
+      setLoadingBoost(false);
     }
   }
 
   async function handlePurchaseSuperLikes() {
-    setLoading(true);
+    setLoadingSuperLikes(true);
     try {
       const { authorization_url } = await subscriptionService.purchaseSuperLikes(5);
       window.location.href = authorization_url;
     } catch {
       toast.error("Failed to initialize Super Like purchase. Please try again.");
-      setLoading(false);
+      setLoadingSuperLikes(false);
     }
   }
 
@@ -230,13 +232,18 @@ export default function Premium() {
             </div>
 
             {!isPremium ? (
-              <Button
-                onClick={() => { setSelectedPlan("premium"); handleSubscribe("premium"); }}
-                disabled={loading}
-                className="w-full h-14 rounded-2xl bg-white text-purple-600 hover:bg-white/90 font-bold text-lg"
-              >
-                {loading ? <Loader2 className="w-6 h-6 animate-spin" /> : "Start Premium Trial"}
-              </Button>
+              <div className="flex flex-col items-stretch gap-2">
+                <Button
+                  onClick={() => { setSelectedPlan("premium"); handleSubscribe("premium"); }}
+                  disabled={loadingSubscribe}
+                  className="w-full h-14 rounded-2xl bg-white text-purple-600 hover:bg-white/90 font-bold text-lg"
+                >
+                  {loadingSubscribe ? <Loader2 className="w-6 h-6 animate-spin" /> : "Start Premium Trial"}
+                </Button>
+                <p className="text-xs text-white/80 text-center">
+                  Includes <span className="font-semibold">Silver Premium</span> membership.
+                </p>
+              </div>
             ) : (
               <div className="bg-white/20 backdrop-blur-sm rounded-2xl p-4 text-center">
                 <Crown className="w-8 h-8 mx-auto mb-2" />
@@ -279,7 +286,7 @@ export default function Premium() {
 
             <div className="bg-rose-50 rounded-2xl p-4 mb-6">
               <p className="text-xs text-rose-700">
-                <strong>Note:</strong> This add-on requires AURA Premium subscription. Total cost will be Premium + Casual Add-On.
+                <strong>Note:</strong> Gold Premium requires an active Silver Premium subscription. Total cost will be Silver + Gold Premium.
               </p>
             </div>
 
@@ -297,24 +304,30 @@ export default function Premium() {
                 />
               </button>
               <span className="text-sm font-medium text-gray-700">
-                Add Casual Connection features for +{formatPrice(PRICING.casual_addon[billingCycle])}
+                Add Gold Premium features for +{formatPrice(PRICING.casual_addon[billingCycle])}
               </span>
             </div>
 
-            {!hasCasualAddon && addCasual && selectedPlan !== "premium" && (
+            {!hasCasualAddon && (
               <Button
-                onClick={() => { setSelectedPlan("premium"); handleSubscribe("premium"); }}
-                disabled={loading || !selectedPlan}
+                onClick={() => {
+                  if (!addCasual) setAddCasual(true);
+                  setSelectedPlan("premium");
+                  handleSubscribe("premium");
+                }}
+                disabled={loadingSubscribe}
                 className="w-full h-12 rounded-2xl bg-gradient-to-r from-rose-500 to-purple-600 text-white font-semibold"
               >
-                {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : `Get Premium + Casual (${formatPrice(PRICING.premium[billingCycle] + PRICING.casual_addon[billingCycle])})`}
+                {loadingSubscribe
+                  ? <Loader2 className="w-5 h-5 animate-spin" />
+                  : `Get Gold Premium (${formatPrice(PRICING.premium[billingCycle] + PRICING.casual_addon[billingCycle])})`}
               </Button>
             )}
 
             {hasCasualAddon && (
               <div className="bg-rose-50 rounded-2xl p-4 text-center">
                 <Flame className="w-8 h-8 text-rose-500 mx-auto mb-2" />
-                <p className="font-semibold text-rose-600">Casual Add-On Active!</p>
+                <p className="font-semibold text-rose-600">Gold Premium Active!</p>
               </div>
             )}
           </div>
@@ -334,14 +347,11 @@ export default function Premium() {
                 <div className="text-lg font-bold text-gray-900 mb-3">{formatPrice(4990)}</div>
                 <Button 
                   onClick={handlePurchaseBoost}
-                  disabled={loading || !sub || sub.plan === "free"}
+                  disabled={loadingBoost}
                   className="w-full rounded-xl bg-gradient-to-r from-yellow-500 to-orange-500 text-white hover:from-yellow-600 hover:to-orange-600"
                 >
-                  {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : "Buy Boost"}
+                  {loadingBoost ? <Loader2 className="w-4 h-4 animate-spin" /> : "Buy Boost"}
                 </Button>
-                {(!sub || sub.plan === "free") && (
-                  <p className="text-xs text-gray-400 mt-2">Requires Premium subscription</p>
-                )}
               </div>
               <div className="border-2 border-rose-200 rounded-2xl p-4 hover:border-rose-400 transition-all">
                 <div className="flex items-center gap-2 mb-2">
@@ -352,14 +362,11 @@ export default function Premium() {
                 <div className="text-lg font-bold text-gray-900 mb-3">{formatPrice(4990)}</div>
                 <Button 
                   onClick={handlePurchaseSuperLikes}
-                  disabled={loading || !sub || sub.plan === "free"}
+                  disabled={loadingSuperLikes}
                   className="w-full rounded-xl bg-gradient-to-r from-rose-500 to-purple-600 text-white hover:from-rose-600 hover:to-purple-700"
                 >
-                  {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : "Buy Super Likes"}
+                  {loadingSuperLikes ? <Loader2 className="w-4 h-4 animate-spin" /> : "Buy Super Likes"}
                 </Button>
-                {(!sub || sub.plan === "free") && (
-                  <p className="text-xs text-gray-400 mt-2">Requires Premium subscription</p>
-                )}
               </div>
             </div>
             {(sub?.boosts_purchased || 0) > 0 && (

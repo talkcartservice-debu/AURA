@@ -28,7 +28,7 @@ export default function HotLove() {
       await subscriptionService.verify(reference);
       qc.invalidateQueries(["subscription"]);
       qc.invalidateQueries(["myProfile"]);
-      toast.success("Payment verified! Welcome to Hot Love! \u2764\ufe0f\u200d\ud83d\udd25");
+      toast.success("Payment verified! Premium Casual mode is now active \u2764\ufe0f\u200d\ud83d\udd25");
       // Clean up URL params
       setSearchParams({});
     } catch {
@@ -41,9 +41,10 @@ export default function HotLove() {
     setLoading(true);
     try {
       const { authorization_url } = await subscriptionService.initialize({
-        plan: "hot_love",
+        plan: "premium",
         billing_cycle: "monthly",
-        callback_url: `${window.location.origin}/hot-love?verify=true`,
+        add_casual: true,
+        callback_url: `${window.location.origin}/silver?verify=true`,
       });
       // Redirect to Paystack checkout
       window.location.href = authorization_url;
@@ -54,12 +55,12 @@ export default function HotLove() {
     }
   }
 
-  const isActive = sub?.plan === "hot_love" && sub?.is_active;
+  const isActive = sub?.plan === "premium" && sub?.is_active && sub?.casual_addon;
   const PERKS = [
     { icon: Crown, text: "Priority in daily matches" },
     { icon: Heart, text: "See who liked you" },
     { icon: Zap, text: "Unlimited likes per day" },
-    { icon: Flame, text: "Exclusive Hot Love badge" },
+    { icon: Flame, text: "Exclusive Silver Premium badge" },
     { icon: Shield, text: "Advanced search filters" },
     { icon: EyeOff, text: "Incognito mode — browse invisibly" },
   ];
@@ -68,7 +69,7 @@ export default function HotLove() {
     <div className="max-w-lg mx-auto p-4">
       <div className="bg-gradient-to-br from-orange-500 to-rose-600 rounded-3xl p-6 text-white mb-6">
         <Flame className="w-12 h-12 mb-4" />
-        <h1 className="text-3xl font-black mb-2">Hot Love</h1>
+        <h1 className="text-3xl font-black mb-2">Silver Premium</h1>
         <p className="text-white/80 text-sm">Supercharge your dating experience</p>
         <div className="mt-4 bg-white/20 backdrop-blur-sm rounded-2xl px-4 py-2 inline-block">
           <span className="text-2xl font-black">\u20A65,000</span>
@@ -97,7 +98,7 @@ export default function HotLove() {
         ) : isActive ? (
           <div className="text-center py-4 bg-rose-50 rounded-2xl">
             <Flame className="w-8 h-8 text-rose-500 mx-auto mb-2" />
-            <p className="text-rose-600 font-semibold">You're a Hot Love member! \u2764\ufe0f\u200d\ud83d\udd25</p>
+            <p className="text-rose-600 font-semibold">Gold Premium is active on your account! \u2764\ufe0f\u200d\ud83d\udd25</p>
             {sub?.expires_at && (
               <p className="text-xs text-rose-400 mt-1">Active until {new Date(sub.expires_at).toLocaleDateString()}</p>
             )}

@@ -3,7 +3,7 @@
   "type": "object",
   "properties": {
     "user_email": { "type": "string" },
-    "plan": { "type": "string", "enum": ["free", "hot_love"], "default": "free" },
+    "plan": { "type": "string", "enum": ["free", "premium"], "default": "free" },
     "started_at": { "type": "string", "format": "date-time" },
     "expires_at": { "type": "string", "format": "date-time" },
     "is_active": { "type": "boolean", "default": true }

@@ -7,5 +7,5 @@ export const pagesConfig = [
   { path: "/groups", title: "Groups" },
   { path: "/profile", title: "My Profile" },
   { path: "/verification", title: "Verification" },
-  { path: "/hot-love", title: "Hot Love" },
+  { path: "/silver", title: "Silver Premium" },
 ];

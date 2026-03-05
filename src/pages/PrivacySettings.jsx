@@ -161,22 +161,22 @@ export default function PrivacySettings() {
             : "bg-gradient-to-r from-purple-50 to-rose-50 border-purple-200"
         }`}>
           <div className="flex items-center gap-3 mb-2">
-            {hasCasualAddon ? (
-              <>
-                <Flame className="w-5 h-5 text-rose-600" />
-                <span className="font-bold text-rose-700">Premium + Casual Active</span>
-              </>
-            ) : (
-              <>
-                <Crown className="w-5 h-5 text-purple-600" />
-                <span className="font-bold text-purple-700">Premium Active</span>
-              </>
-            )}
+              {hasCasualAddon ? (
+                <>
+                  <Flame className="w-5 h-5 text-rose-600" />
+                  <span className="font-bold text-rose-700">Gold Premium Active</span>
+                </>
+              ) : (
+                <>
+                  <Crown className="w-5 h-5 text-purple-600" />
+                  <span className="font-bold text-purple-700">Silver Premium Active</span>
+                </>
+              )}
           </div>
           <p className="text-xs text-gray-600">
             {hasCasualAddon 
-              ? "You have access to all privacy features including disappearing messages"
-              : "Upgrade to Casual Add-On for disappearing messages and verified-only browsing"}
+              ? "You have access to all Gold Premium privacy features including disappearing messages"
+              : "Upgrade to Gold Premium for disappearing messages and verified-only browsing"}
           </p>
         </div>
       )}
