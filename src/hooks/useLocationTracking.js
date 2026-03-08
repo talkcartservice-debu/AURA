@@ -46,7 +46,7 @@ export function useLocationTracking() {
     setError(null);
     
     try {
-      const response = await apiClient.post("/api/location/update", locationData);
+      const response = await apiClient.post("/location/update", locationData);
       toast({
         title: "Location Updated",
         description: "Your location has been updated successfully",
@@ -75,7 +75,7 @@ export function useLocationTracking() {
     
     try {
       const params = new URLSearchParams({ email, radius: radius.toString(), ...filters });
-      const response = await apiClient.get(`/api/location/nearby?${params}`);
+      const response = await apiClient.get(`/location/nearby?${params}`);
       return response.data;
     } catch (err) {
       const errorMsg = err.response?.data?.error || "Failed to find nearby users";
@@ -104,7 +104,7 @@ export function useLocationTracking() {
         min_distance: minDistance.toString(),
         max_distance: maxDistance.toString(),
       });
-      const response = await apiClient.get(`/api/location/distance-range?${params}`);
+      const response = await apiClient.get(`/location/distance-range?${params}`);
       return response.data;
     } catch (err) {
       const errorMsg = err.response?.data?.error || "Failed to filter by distance";
@@ -124,7 +124,7 @@ export function useLocationTracking() {
     
     try {
       const params = new URLSearchParams({ email, days: days.toString() });
-      const response = await apiClient.get(`/api/location/frequent?${params}`);
+      const response = await apiClient.get(`/location/frequent?${params}`);
       return response.data;
     } catch (err) {
       const errorMsg = err.response?.data?.error || "Failed to get frequent locations";
@@ -144,7 +144,7 @@ export function useLocationTracking() {
     
     try {
       const params = new URLSearchParams({ email1, email2 });
-      const response = await apiClient.get(`/api/location/compatibility?${params}`);
+      const response = await apiClient.get(`/location/compatibility?${params}`);
       return response.data;
     } catch (err) {
       const errorMsg = err.response?.data?.error || "Failed to calculate compatibility";

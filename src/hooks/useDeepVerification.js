@@ -16,7 +16,7 @@ export function useDeepVerification() {
     setError(null);
     
     try {
-      const response = await apiClient.post("/api/deep-verification/deep/init", {
+      const response = await apiClient.post("/deep-verification/deep/init", {
         email,
         verification_type: verificationType,
       });
@@ -49,7 +49,7 @@ export function useDeepVerification() {
     setError(null);
     
     try {
-      const response = await apiClient.post("/api/deep-verification/deep/id-document", {
+      const response = await apiClient.post("/deep-verification/deep/id-document", {
         email,
         ...documentData,
       });
@@ -82,7 +82,7 @@ export function useDeepVerification() {
     setError(null);
     
     try {
-      const response = await apiClient.post("/api/deep-verification/deep/phone/send-code", {
+      const response = await apiClient.post("/deep-verification/deep/phone/send-code", {
         email,
         phone_number: phoneNumber,
         country_code: countryCode,
@@ -116,7 +116,7 @@ export function useDeepVerification() {
     setError(null);
     
     try {
-      const response = await apiClient.post("/api/deep-verification/deep/phone/verify-code", {
+      const response = await apiClient.post("/deep-verification/deep/phone/verify-code", {
         email,
         otp,
       });
@@ -149,7 +149,7 @@ export function useDeepVerification() {
     setError(null);
     
     try {
-      const response = await apiClient.post("/api/deep-verification/deep/social-accounts", {
+      const response = await apiClient.post("/deep-verification/deep/social-accounts", {
         email,
         social_accounts: socialAccounts,
       });
@@ -182,7 +182,7 @@ export function useDeepVerification() {
     setError(null);
     
     try {
-      const response = await apiClient.post("/api/deep-verification/deep/video", {
+      const response = await apiClient.post("/deep-verification/deep/video", {
         email,
         video_url: videoUrl,
         duration,
@@ -217,7 +217,7 @@ export function useDeepVerification() {
     setError(null);
     
     try {
-      const response = await apiClient.get(`/api/deep-verification/deep/status?email=${email}`);
+      const response = await apiClient.get(`/deep-verification/deep/status?email=${email}`);
       setVerificationStatus(response.data);
       return response.data;
     } catch (err) {

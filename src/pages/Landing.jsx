@@ -136,7 +136,8 @@ export default function Landing() {
         // They can enable fingerprint later from Security Settings
       }
     } catch (err) {
-      const errorMessage = err.response?.data?.error || "Something went wrong";
+      const errorData = err.response?.data?.error || "Something went wrong";
+      const errorMessage = typeof errorData === 'object' ? (errorData.message || JSON.stringify(errorData)) : String(errorData);
       toast.error(errorMessage);
     }
     setLoading(false);
