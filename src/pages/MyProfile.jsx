@@ -176,9 +176,9 @@ export default function MyProfile() {
             <h2 className="text-xl font-bold text-gray-900 flex items-center justify-center gap-1.5">
               {profile?.display_name}
               {profile?.age && <span className="font-normal text-gray-400">, {profile.age}</span>}
-              {profile?.is_verified && <ShieldCheck className="w-4 h-4 text-blue-500" />}
-              {profile?.is_personality_verified && <Brain className="w-4 h-4 text-purple-500" />}
-              {profile?.is_premium && <Flame className="w-4 h-4 text-orange-500" />}
+              {profile?.is_verified && <ShieldCheck className="w-4 h-4 text-blue-500" title="Identity Verified" />}
+              {profile?.is_personality_verified && <Brain className="w-4 h-4 text-purple-500" title="Personality Verified" />}
+              {isSilverPremium && <Flame className="w-4 h-4 text-orange-500" title={sub.plan === "premium" && sub.casual_addon ? "Gold Premium" : "Silver Premium"} />}
             </h2>
             {user?.username && (
               <p className="text-sm text-gray-400">@{user.username}</p>
@@ -402,7 +402,7 @@ export default function MyProfile() {
               <div className="flex gap-2">
                 {!profile?.is_verified && <Button onClick={() => navigate("/verification")} variant="outline" className="flex-1 rounded-xl text-xs">Verify Identity</Button>}
                 {!profile?.is_personality_verified && <Button onClick={() => navigate("/verification")} variant="outline" className="flex-1 rounded-xl text-xs">Personality Quiz</Button>}
-                {!profile?.is_hot_love && <Button onClick={() => navigate("/premium")} variant="outline" className="flex-1 rounded-xl text-xs bg-gradient-to-r from-purple-500 to-rose-500 text-white border-0">Premium ✨</Button>}
+                {!isSilverPremium && <Button onClick={() => navigate("/premium")} variant="outline" className="flex-1 rounded-xl text-xs bg-gradient-to-r from-purple-500 to-rose-500 text-white border-0">AURAsoul premium ✨</Button>}
               </div>
             </div>
           ) : (
