@@ -44,7 +44,7 @@ router.post("/register", async (req, res) => {
     const publicKey = {
       rp: {
         name: "AURA Dating",
-        id: process.env.WEBAUTHN_RP_ID || "localhost",
+        id: process.env.WEBAUTHN_RP_ID || req.get("host").split(":")[0],
       },
       user: {
         id: Buffer.from(user_id).toString("base64"),
@@ -173,7 +173,7 @@ router.post("/authenticate", async (req, res) => {
       timeout: 60000,
       userVerification: "required",
       allowCredentials,
-      rpId: process.env.WEBAUTHN_RP_ID || "localhost",
+      rpId: process.env.WEBAUTHN_RP_ID || req.get("host").split(":")[0],
     };
 
     res.json({ 
