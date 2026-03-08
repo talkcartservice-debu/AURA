@@ -176,8 +176,18 @@ export default function MyProfile() {
             <h2 className="text-xl font-bold text-gray-900 flex items-center justify-center gap-1.5">
               {profile?.display_name}
               {profile?.age && <span className="font-normal text-gray-400">, {profile.age}</span>}
-              {profile?.is_verified && <ShieldCheck className="w-4 h-4 text-blue-500" title="Identity Verified" />}
-              {profile?.is_personality_verified && <Brain className="w-4 h-4 text-purple-500" title="Personality Verified" />}
+              <button onClick={() => navigate("/verification")} className="flex items-center gap-1">
+                {profile?.is_verified ? (
+                  <ShieldCheck className="w-4 h-4 text-blue-500" title="Identity Verified" />
+                ) : (
+                  <ShieldCheck className="w-4 h-4 text-gray-300 hover:text-blue-400 transition-colors" title="Get Verified" />
+                )}
+                {profile?.is_personality_verified ? (
+                  <Brain className="w-4 h-4 text-purple-500" title="Personality Verified" />
+                ) : (
+                  <Brain className="w-4 h-4 text-gray-300 hover:text-purple-400 transition-colors" title="Get Personality Verified" />
+                )}
+              </button>
               {isSilverPremium && <Flame className="w-4 h-4 text-orange-500" title={sub.plan === "premium" && sub.casual_addon ? "Gold Premium" : "Silver Premium"} />}
             </h2>
             {user?.username && (

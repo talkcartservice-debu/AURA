@@ -4,8 +4,10 @@ import { groupService, eventService, dateEventService } from "@/api/entities";
 import { useAuth } from "@/lib/AuthContext";
 import GroupCard from "@/components/groups/GroupCard";
 import CreateGroupModal from "@/components/groups/CreateGroupModal";
+import GroupChatModal from "@/components/groups/GroupChatModal";
 import CreateEventModal from "@/components/events/CreateEventModal";
 import EventCard from "@/components/events/EventCard";
+import AttendeeListModal from "@/components/events/AttendeeListModal";
 import CommunityEventSuggestion from "@/components/events/CommunityEventSuggestion";
 import AIRelationshipCoach from "@/components/coach/AIRelationshipCoach";
 import { Button } from "@/components/ui/button";
@@ -22,6 +24,8 @@ export default function Groups() {
   const [showCreate, setShowCreate] = useState(false);
   const [showEvent, setShowEvent] = useState(null);
   const [showSuggestModal, setShowSuggestModal] = useState(false);
+  const [activeChatGroup, setActiveChatGroup] = useState(null);
+  const [activeEventAttendees, setActiveEventAttendees] = useState(null);
   
   const { data: groups, isLoading } = useQuery({ queryKey: ["groups"], queryFn: groupService.list });
   const { data: events } = useQuery({ queryKey: ["events"], queryFn: () => eventService.list() });
@@ -151,6 +155,7 @@ export default function Groups() {
                 onJoin={handleJoin} 
                 onLeave={handleLeave} 
                 onCreateEvent={(groupId) => setShowEvent(groupId)} 
+                onOpenChat={(group) => setActiveChatGroup(group)}
               />
             ))}
             {(!groups || groups.length === 0) && (
@@ -183,6 +188,7 @@ export default function Groups() {
                     userEmail={user?.email} 
                     onRSVP={handleRSVP} 
                     showAIInsights={true}
+                    onShowAttendees={(event) => setActiveEventAttendees(event)}
                   />
                 ))}
               </div>
@@ -259,6 +265,21 @@ export default function Groups() {
         <CommunityEventSuggestion
           onClose={() => setShowSuggestModal(false)}
           onSuggest={handleSuggestEvent}
+        />
+      )}
+
+      {activeChatGroup && (
+        <GroupChatModal
+          group={activeChatGroup}
+          user={user}
+          onClose={() => setActiveChatGroup(null)}
+        />
+      )}
+
+      {activeEventAttendees && (
+        <AttendeeListModal
+          event={activeEventAttendees}
+          onClose={() => setActiveEventAttendees(null)}
         />
       )}
     </div>

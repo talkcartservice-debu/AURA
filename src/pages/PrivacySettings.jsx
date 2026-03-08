@@ -36,7 +36,35 @@ export default function PrivacySettings() {
     show_blurred_to_public: false,
     disappearing_messages_default: false,
     verified_only_browsing: false,
+    read_receipts_enabled: true,
   });
+
+  const [blockedEmails, setBlockedEmails] = useState([]);
+
+  useState(() => {
+    if (settings) {
+      setLocalSettings({
+        is_incognito: settings.is_incognito || false,
+        hide_from_contacts: settings.hide_from_contacts || false,
+        screenshot_alerts_enabled: settings.screenshot_alerts_enabled || false,
+        show_blurred_to_public: settings.show_blurred_to_public || false,
+        disappearing_messages_default: settings.disappearing_messages_default || false,
+        verified_only_browsing: settings.verified_only_browsing || false,
+        read_receipts_enabled: settings.read_receipts_enabled !== false,
+      });
+      setBlockedEmails(settings.blocked_emails || []);
+    }
+  });
+
+  const handleUnblock = async (email) => {
+    try {
+      await privacyService.unblock(email);
+      setBlockedEmails(prev => prev.filter(e => e !== email));
+      toast.success("User unblocked");
+    } catch (err) {
+      toast.error("Failed to unblock user");
+    }
+  };
 
   if (isLoading) {
     return (
@@ -211,6 +239,13 @@ export default function PrivacySettings() {
           description="Get notified when someone takes a screenshot of your profile or photos."
           requiresPremium={true}
         />
+
+        <SettingToggle
+          settingKey="read_receipts_enabled"
+          icon={CheckCircle}
+          title="Read Receipts"
+          description="Allow others to see when you've read their messages. If disabled, you also won't see when others read your messages."
+        />
       </div>
 
       {/* Photo Privacy */}
@@ -287,6 +322,35 @@ export default function PrivacySettings() {
             </Button>
           </div>
         )}
+      </div>
+
+      {/* Blocked Users */}
+      <div className="space-y-4 mb-6">
+        <h2 className="text-lg font-bold text-gray-900 flex items-center gap-2">
+          <Shield className="w-5 h-5 text-gray-600" />
+          Blocked Users
+        </h2>
+        <div className="bg-white rounded-2xl border-2 border-gray-100 p-4">
+          {blockedEmails.length === 0 ? (
+            <p className="text-sm text-gray-500 text-center py-4">No blocked users</p>
+          ) : (
+            <div className="space-y-3">
+              {blockedEmails.map(email => (
+                <div key={email} className="flex items-center justify-between py-2 border-b last:border-0">
+                  <span className="text-sm text-gray-700">{email}</span>
+                  <Button
+                    onClick={() => handleUnblock(email)}
+                    variant="outline"
+                    size="sm"
+                    className="h-8 rounded-full text-xs"
+                  >
+                    Unblock
+                  </Button>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Privacy Tips */}

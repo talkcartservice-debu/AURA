@@ -1,6 +1,8 @@
 import { Router } from "express";
 import auth from "../middleware/auth.js";
 import Group from "../models/Group.js";
+import GroupMessage from "../models/GroupMessage.js";
+import { emitToUsers } from "../signaling.js";
 
 const router = Router();
 
@@ -61,6 +63,55 @@ router.post("/:id/leave", auth, async (req, res) => {
       { new: true }
     );
     res.json(group);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Group Messaging
+router.get("/:id/messages", auth, async (req, res) => {
+  try {
+    const group = await Group.findById(req.params.id);
+    if (!group) return res.status(404).json({ error: "Group not found" });
+    
+    // Check if user is a member
+    if (!group.member_emails.includes(req.user.email)) {
+      return res.status(403).json({ error: "Must be a member to see messages" });
+    }
+
+    const messages = await GroupMessage.find({ group_id: req.params.id, deleted: false })
+      .sort({ createdAt: 1 })
+      .limit(100);
+    res.json(messages);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.post("/:id/messages", auth, async (req, res) => {
+  try {
+    const { content } = req.body;
+    const group = await Group.findById(req.params.id);
+    if (!group) return res.status(404).json({ error: "Group not found" });
+
+    if (!group.member_emails.includes(req.user.email)) {
+      return res.status(403).json({ error: "Must be a member to post messages" });
+    }
+
+    const message = await GroupMessage.create({
+      group_id: req.params.id,
+      sender_email: req.user.email,
+      content,
+    });
+
+    // Notify all members except sender
+    const otherMembers = group.member_emails.filter(e => e !== req.user.email);
+    emitToUsers(otherMembers, "group_message_received", {
+      group_id: req.params.id,
+      message,
+    });
+
+    res.status(201).json(message);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

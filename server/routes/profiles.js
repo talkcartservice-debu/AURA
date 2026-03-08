@@ -43,8 +43,11 @@ router.get("/:email", auth, async (req, res) => {
 // List all profiles (for discovery)
 router.get("/", auth, async (req, res) => {
   try {
+    const myProfile = await UserProfile.findOne({ user_email: req.user.email });
+    const blockedEmails = myProfile?.blocked_emails || [];
+
     const profiles = await UserProfile.find({
-      user_email: { $ne: req.user.email },
+      user_email: { $ne: req.user.email, $nin: blockedEmails },
       profile_complete: true,
       is_incognito: { $ne: true },
     });

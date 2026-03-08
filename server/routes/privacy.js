@@ -31,6 +31,8 @@ router.get("/settings", auth, async (req, res) => {
       blurred_photos_count: (profile.blurred_photos || []).length,
       disappearing_messages_default: profile.casual_preferences?.disappearing_messages_default || false,
       verified_only_browsing: profile.casual_preferences?.verified_only || false,
+      read_receipts_enabled: profile.read_receipts_enabled !== false,
+      blocked_emails: profile.blocked_emails || [],
       has_privacy_suite: !!hasPrivacySuite,
       has_casual_addon: !!hasCasualAddon,
     });
@@ -49,6 +51,7 @@ router.put("/settings", auth, async (req, res) => {
       show_blurred_to_public,
       disappearing_messages_default,
       verified_only_browsing,
+      read_receipts_enabled,
     } = req.body;
 
     const profile = await UserProfile.findOne({ user_email: req.user.email });
@@ -114,6 +117,10 @@ router.put("/settings", auth, async (req, res) => {
         profile.casual_preferences = {};
       }
       profile.casual_preferences.verified_only = verified_only_browsing;
+    }
+
+    if (typeof read_receipts_enabled === "boolean") {
+      profile.read_receipts_enabled = read_receipts_enabled;
     }
 
     await profile.save();
@@ -284,6 +291,53 @@ router.get("/messages/:match_id", auth, async (req, res) => {
     res.json(messages);
   } catch (err) {
     console.error("Get messages error:", err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Block a user
+router.post("/block", auth, async (req, res) => {
+  try {
+    const { block_email } = req.body;
+    if (!block_email) return res.status(400).json({ error: "block_email is required" });
+
+    const profile = await UserProfile.findOne({ user_email: req.user.email });
+    if (!profile.blocked_emails) profile.blocked_emails = [];
+    
+    if (!profile.blocked_emails.includes(block_email)) {
+      profile.blocked_emails.push(block_email);
+      await profile.save();
+    }
+
+    // Also unmatch if they are matched
+    const Match = (await import("../models/Match.js")).default;
+    await Match.deleteMany({
+      $or: [
+        { user1_email: req.user.email, user2_email: block_email },
+        { user1_email: block_email, user2_email: req.user.email }
+      ]
+    });
+
+    res.json({ message: "User blocked successfully" });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Unblock a user
+router.post("/unblock", auth, async (req, res) => {
+  try {
+    const { unblock_email } = req.body;
+    if (!unblock_email) return res.status(400).json({ error: "unblock_email is required" });
+
+    const profile = await UserProfile.findOne({ user_email: req.user.email });
+    if (profile.blocked_emails) {
+      profile.blocked_emails = profile.blocked_emails.filter(e => e !== unblock_email);
+      await profile.save();
+    }
+
+    res.json({ message: "User unblocked successfully" });
+  } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });

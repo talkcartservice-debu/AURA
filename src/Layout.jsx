@@ -3,8 +3,9 @@ import { Outlet, NavLink, useNavigate } from "react-router-dom";
 import { Compass, Heart, MessageCircle, Users, User } from "lucide-react";
 import { useSocket } from "@/hooks/useSocket";
 import { toast } from "sonner";
-import { messageService } from "@/api/entities";
+import { messageService, profileService } from "@/api/entities";
 import CallProvider from "@/components/calls/CallProvider";
+import MatchCelebration from "@/components/matches/MatchCelebration";
 
 const NAV_ITEMS = [
   { to: "/discover", icon: Compass, label: "Discover" },
@@ -19,6 +20,8 @@ export default function Layout() {
   const { on, off } = useSocket();
   const notificationPermissionRequestedRef = useRef(false);
   const [hasShownUnreadSummary, setHasShownUnreadSummary] = useState(false);
+  const [activeMatchCelebration, setActiveMatchCelebration] = useState(null);
+  const [activeMatchProfile, setActiveMatchProfile] = useState(null);
 
   // Helper to show browser push notification (where supported)
   const showBrowserNotification = (title, body) => {
@@ -62,6 +65,17 @@ export default function Layout() {
 
     const handleNewMatch = (payload) => {
       const { other_email, match_id } = payload || {};
+      
+      // Fetch profile for celebration popup
+      if (other_email) {
+        profileService.getByEmail(other_email)
+          .then(profile => {
+            setActiveMatchProfile(profile);
+            setActiveMatchCelebration(payload);
+          })
+          .catch(console.error);
+      }
+
       toast.success("It's a match! 💕", {
         description: other_email ? `You matched with ${other_email}` : undefined,
         action: {
@@ -139,6 +153,23 @@ export default function Layout() {
   return (
     <CallProvider>
       <div className="min-h-screen bg-gray-50 pb-20">
+        <MatchCelebration
+          match={activeMatchCelebration}
+          profile={activeMatchProfile}
+          onClose={() => {
+            setActiveMatchCelebration(null);
+            setActiveMatchProfile(null);
+          }}
+          onChat={() => {
+            if (activeMatchCelebration?.match_id) {
+              navigate(`/chat/${activeMatchCelebration.match_id}`);
+            } else {
+              navigate("/matches");
+            }
+            setActiveMatchCelebration(null);
+            setActiveMatchProfile(null);
+          }}
+        />
         <Outlet />
         <nav className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-100 z-50">
           <div className="flex justify-around items-center h-16 max-w-lg mx-auto">

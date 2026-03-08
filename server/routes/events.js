@@ -1,6 +1,7 @@
 import { Router } from "express";
 import auth from "../middleware/auth.js";
 import Event from "../models/Event.js";
+import UserProfile from "../models/UserProfile.js";
 
 const router = Router();
 
@@ -42,6 +43,21 @@ router.post("/:id/rsvp", auth, async (req, res) => {
     }
     await event.save();
     res.json(event);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.get("/:id/attendees", auth, async (req, res) => {
+  try {
+    const event = await Event.findById(req.params.id);
+    if (!event) return res.status(404).json({ error: "Event not found" });
+
+    const profiles = await UserProfile.find({
+      user_email: { $in: event.rsvp_emails }
+    }).select("display_name photos user_email age bio location");
+
+    res.json(profiles);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

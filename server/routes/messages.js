@@ -26,6 +26,28 @@ router.get("/:matchId", auth, async (req, res) => {
         }
       ]
     }).sort({ createdAt: 1 });
+
+    // Handle read receipts privacy
+    const Match = (await import("../models/Match.js")).default;
+    const match = await Match.findById(req.params.matchId);
+    if (match) {
+      const otherEmail = match.user1_email === req.user.email ? match.user2_email : match.user1_email;
+      const [myProfile, otherProfile] = await Promise.all([
+        UserProfile.findOne({ user_email: req.user.email }),
+        UserProfile.findOne({ user_email: otherEmail })
+      ]);
+
+      const readReceiptsEnabled = (myProfile?.read_receipts_enabled !== false) && 
+                                (otherProfile?.read_receipts_enabled !== false);
+
+      if (!readReceiptsEnabled) {
+        messages.forEach(m => {
+          if (m.sender_email === req.user.email) {
+            m.is_read = false;
+          }
+        });
+      }
+    }
     
     res.json(messages);
   } catch (err) {
@@ -141,11 +163,19 @@ router.patch("/:matchId/read", auth, async (req, res) => {
     );
 
     // Notify the sender that their messages were read
+    // ONLY if both have read receipts enabled
     try {
-      emitToUser(otherEmail, "messages_read", {
-        match_id: matchId,
-        reader_email: req.user.email
-      });
+      const [myProfile, otherProfile] = await Promise.all([
+        UserProfile.findOne({ user_email: req.user.email }),
+        UserProfile.findOne({ user_email: otherEmail })
+      ]);
+
+      if (myProfile?.read_receipts_enabled !== false && otherProfile?.read_receipts_enabled !== false) {
+        emitToUser(otherEmail, "messages_read", {
+          match_id: matchId,
+          reader_email: req.user.email
+        });
+      }
     } catch (socketErr) {
       console.error("Socket emit messages_read error:", socketErr);
     }

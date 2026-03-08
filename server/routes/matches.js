@@ -47,7 +47,9 @@ router.get("/daily", auth, async (req, res) => {
       const mutualEmails = mutualMatches.map((m) =>
         m.user1_email === req.user.email ? m.user2_email : m.user1_email
       );
-      const excludeEmails = [...new Set([req.user.email, ...previousMatches, ...mutualEmails])];
+      
+      const blockedEmails = myProfile.blocked_emails || [];
+      const excludeEmails = [...new Set([req.user.email, ...previousMatches, ...mutualEmails, ...blockedEmails])];
 
       // Build query based on intent matching
       let intentQuery = {};

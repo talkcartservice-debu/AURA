@@ -1,7 +1,7 @@
-import { Users, MapPin } from "lucide-react";
+import { Users, MapPin, MessageCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
-export default function GroupCard({ group, userEmail, onJoin, onLeave, onCreateEvent }) {
+export default function GroupCard({ group, userEmail, onJoin, onLeave, onCreateEvent, onOpenChat }) {
   const isMember = (group.member_emails || []).includes(userEmail);
   const memberCount = (group.member_emails || []).length;
   const isFull = group.max_members && memberCount >= group.max_members;
@@ -61,6 +61,17 @@ export default function GroupCard({ group, userEmail, onJoin, onLeave, onCreateE
             className="rounded-xl h-8 text-xs font-semibold border-purple-200 text-purple-600 hover:bg-purple-50"
           >
             + Event
+          </Button>
+        )}
+        {isMember && onOpenChat && (
+          <Button
+            onClick={() => onOpenChat(group)}
+            size="sm"
+            variant="outline"
+            className="rounded-xl h-8 text-xs font-semibold border-rose-200 text-rose-600 hover:bg-rose-50"
+          >
+            <MessageCircle className="w-3.5 h-3.5 mr-1" />
+            Chat
           </Button>
         )}
       </div>

@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { matchService, likeService, profileService, subscriptionService } from "@/api/entities";
+import { matchService, likeService, profileService, subscriptionService, privacyService } from "@/api/entities";
 import MatchCard from "@/components/discover/MatchCard";
 import SearchFilters from "@/components/discover/SearchFilters";
 import DiscoverSkeleton from "@/components/discover/DiscoverSkeleton";
@@ -9,6 +9,9 @@ import OnlineStatusBadge from "@/components/ui/OnlineStatusBadge";
 import { Loader2, Sparkles, Crown } from "lucide-react";
 import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
+import { AnimatePresence } from "framer-motion";
+import { useAllOnlineUsers } from "@/hooks/useOnlineStatus";
+import { calculateDistance } from "@/lib/utils";
 
 export default function Discover() {
   const qc = useQueryClient();
@@ -27,6 +30,7 @@ export default function Discover() {
     queryKey: ["subscription"],
     queryFn: subscriptionService.get,
   });
+  const { onlineUsers } = useAllOnlineUsers();
   const [profiles, setProfiles] = useState({});
   const [actioningId, setActioningId] = useState(null);
 
@@ -63,6 +67,20 @@ export default function Discover() {
     // Lifestyle filters
     if (filters.lifestyle?.smoking && p.lifestyle?.smoking !== filters.lifestyle.smoking) return false;
     if (filters.lifestyle?.drinking && p.lifestyle?.drinking !== filters.lifestyle.drinking) return false;
+    
+    // Online Only filter
+    if (filters.onlineOnly && !onlineUsers.has(m.matched_email)) return false;
+
+    // Max Distance filter
+    if (filters.maxDistance > 0 && myProfile.location_coordinates && p.location_coordinates) {
+      const dist = calculateDistance(
+        myProfile.location_coordinates.latitude,
+        myProfile.location_coordinates.longitude,
+        p.location_coordinates.latitude,
+        p.location_coordinates.longitude
+      );
+      if (dist > filters.maxDistance) return false;
+    }
     
     return true;
   }) : pending;
@@ -115,10 +133,18 @@ export default function Discover() {
     setActioningId(null);
   }
 
-  async function handlePass(dm) {
+  async function handlePass(dm, block = false) {
     setActioningId(dm._id);
-    await matchService.updateDaily(dm._id, "passed");
-    refetch();
+    try {
+      if (block) {
+        await privacyService.block(dm.matched_email);
+        toast.success("User blocked");
+      }
+      await matchService.updateDaily(dm._id, "passed");
+      refetch();
+    } catch {
+      toast.error("Action failed");
+    }
     setActioningId(null);
   }
 
@@ -154,20 +180,38 @@ export default function Discover() {
           <p className="text-gray-400">No more matches for today. Come back tomorrow!</p>
         </div>
       ) : (
-        <div className="space-y-4">
-          {filtered.map((dm) => (
-            <MatchCard
-              key={dm._id}
-              dailyMatch={dm}
-              profile={profiles[dm.matched_email] || {}}
-              myProfile={myProfile}
-              onLike={handleLike}
-              onPass={handlePass}
-              onSuperLike={handleSuperLike}
-              disabled={actioningId === dm._id}
-              subscription={subscription}
-            />
-          ))}
+        <div className="relative h-[600px] w-full mt-4">
+          <AnimatePresence>
+            {filtered.slice(0, 3).reverse().map((dm, index) => {
+              // Only top 3 cards in stack for performance
+              const isTop = index === filtered.slice(0, 3).length - 1;
+              const stackIndex = filtered.slice(0, 3).length - 1 - index;
+              
+              return (
+                <div 
+                  key={dm._id}
+                  className="absolute inset-0"
+                  style={{ 
+                    zIndex: index,
+                    transform: `translateY(${stackIndex * 12}px) scale(${1 - stackIndex * 0.05})`,
+                    transition: 'transform 0.3s ease-out',
+                    opacity: stackIndex > 2 ? 0 : 1
+                  }}
+                >
+                  <MatchCard
+                    dailyMatch={dm}
+                    profile={profiles[dm.matched_email] || {}}
+                    myProfile={myProfile}
+                    onLike={handleLike}
+                    onPass={handlePass}
+                    onSuperLike={handleSuperLike}
+                    disabled={actioningId === dm._id || !isTop}
+                    subscription={subscription}
+                  />
+                </div>
+              );
+            })}
+          </AnimatePresence>
         </div>
       )}
     </div>

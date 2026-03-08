@@ -11,7 +11,15 @@ import {
   Loader2,
   Brain,
   Star,
+  MoreVertical,
+  ShieldAlert,
 } from "lucide-react";
+import { 
+  DropdownMenu, 
+  DropdownMenuContent, 
+  DropdownMenuItem, 
+  DropdownMenuTrigger 
+} from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
 import {
   motion,
@@ -51,6 +59,12 @@ export default function MatchCard({
   const score = dailyMatch.compatibility_score || 0;
   const [icebreaker, setIcebreaker] = useState(null);
   const [loadingIce, setLoadingIce] = useState(false);
+
+  const handleBlock = async () => {
+    if (confirm(`Are you sure you want to block ${profile.display_name || 'this user'}?`)) {
+      onPass(dailyMatch, true); // Pass with block flag
+    }
+  };
 
   async function generateIcebreaker() {
     setLoadingIce(true);
@@ -324,6 +338,24 @@ export default function MatchCard({
                     {score}%
                   </div>
                   <div className="text-rose-100 text-xs mt-0.5">match</div>
+                </div>
+                
+                <div className="absolute top-4 right-4">
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <button className="p-2 bg-black/20 hover:bg-black/40 text-white rounded-full backdrop-blur-sm transition-colors">
+                        <MoreVertical className="w-5 h-5" />
+                      </button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end" className="rounded-2xl">
+                      <DropdownMenuItem 
+                        onClick={handleBlock}
+                        className="text-rose-600 focus:text-rose-600 gap-2 cursor-pointer"
+                      >
+                        <ShieldAlert className="w-4 h-4" /> Block & Report
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
                 </div>
               </div>
             </div>

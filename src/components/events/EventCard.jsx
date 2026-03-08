@@ -2,7 +2,7 @@ import { Calendar, Clock, MapPin, Users, CheckCircle2, Sparkles, Heart, ThumbsUp
 import { Button } from "@/components/ui/button";
 import { format, parseISO } from "date-fns";
 
-export default function EventCard({ event, userEmail, onRSVP, onUpvote, showAIInsights = false }) {
+export default function EventCard({ event, userEmail, onRSVP, onUpvote, showAIInsights = false, onShowAttendees }) {
   const isGoing = (event.rsvp_emails || []).includes(userEmail);
   const attendeeCount = (event.rsvp_emails || []).length;
   const isFull = event.capacity && attendeeCount >= event.capacity;
@@ -89,11 +89,14 @@ export default function EventCard({ event, userEmail, onRSVP, onUpvote, showAIIn
                 <MapPin className="w-3 h-3 text-rose-400" /> {event.location}
               </span>
             )}
-            <span className="flex items-center gap-1 text-xs text-gray-500">
+            <button 
+              onClick={() => onShowAttendees && onShowAttendees(event)}
+              className="flex items-center gap-1 text-xs text-gray-500 hover:text-rose-600 transition-colors"
+            >
               <Users className="w-3 h-3 text-rose-400" />
               {attendeeCount} going
               {event.capacity ? ` / ${event.capacity} max` : ""}
-            </span>
+            </button>
           </div>
         </div>
       </div>

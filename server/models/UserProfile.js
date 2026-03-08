@@ -81,6 +81,10 @@ const userProfileSchema = new mongoose.Schema(
     // Date/event preferences
     preferred_date_types: [{ type: String }], // e.g., "concerts", "art_exhibits", "coffee_shops", "outdoor_activities"
     available_for_dates: { type: Boolean, default: true },
+    // Blocked users
+    blocked_emails: [{ type: String }],
+    // Read receipts
+    read_receipts_enabled: { type: Boolean, default: true },
   },
   { timestamps: true }
 );

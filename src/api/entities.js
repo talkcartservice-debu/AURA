@@ -50,6 +50,8 @@ export const groupService = {
   create: (data) => api.post("/groups", data).then((r) => r.data),
   join: (id) => api.post(`/groups/${id}/join`).then((r) => r.data),
   leave: (id) => api.post(`/groups/${id}/leave`).then((r) => r.data),
+  getMessages: (id) => api.get(`/groups/${id}/messages`).then((r) => r.data),
+  sendMessage: (id, content) => api.post(`/groups/${id}/messages`, { content }).then((r) => r.data),
 };
 
 // Events
@@ -57,6 +59,7 @@ export const eventService = {
   list: (groupId) => api.get("/events", { params: groupId ? { group_id: groupId } : {} }).then((r) => r.data),
   create: (data) => api.post("/events", data).then((r) => r.data),
   rsvp: (id) => api.post(`/events/${id}/rsvp`).then((r) => r.data),
+  getAttendees: (id) => api.get(`/events/${id}/attendees`).then((r) => r.data),
 };
 
 // Verification
@@ -133,6 +136,8 @@ export const privacyService = {
   enableDisappearingMessages: (match_id, duration_hours = 24) =>
     api.post("/privacy/enable-disappearing-messages", { match_id, duration_hours }).then((r) => r.data),
   getMessages: (match_id) => api.get(`/privacy/messages/${match_id}`).then((r) => r.data),
+  block: (email) => api.post("/privacy/block", { block_email: email }).then((r) => r.data),
+  unblock: (email) => api.post("/privacy/unblock", { unblock_email: email }).then((r) => r.data),
 };
 
 // Date Events

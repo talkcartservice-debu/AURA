@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { subscriptionService } from "@/api/entities";
-import { SlidersHorizontal, X, ChevronDown, Crown, Heart, Shield, Brain } from "lucide-react";
+import { SlidersHorizontal, X, ChevronDown, Crown, Heart, Shield, Brain, Wifi } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { motion, AnimatePresence } from "framer-motion";
 
@@ -37,6 +37,7 @@ const DEFAULT_FILTERS = {
   relationshipGoals: [],
   interests: [],
   maxDistance: 0,
+  onlineOnly: false,
 };
 
 export default function SearchFilters({ onFiltersChange }) {
@@ -54,6 +55,7 @@ export default function SearchFilters({ onFiltersChange }) {
     filters.relationshipGoals.length > 0,
     filters.interests.length > 0,
     filters.maxDistance > 0,
+    filters.onlineOnly,
     filters.datingIntent?.length > 0,
     filters.values?.length > 0,
     filters.lifestyle?.smoking || filters.lifestyle?.drinking,
@@ -250,6 +252,26 @@ export default function SearchFilters({ onFiltersChange }) {
                   <p className="text-xs text-rose-600">You're matching with like-minded people open to short-term connections</p>
                 </div>
               )}
+
+              {/* Online Now Filter */}
+              <div className="mb-5 flex items-center justify-between bg-gray-50 p-3 rounded-2xl border border-gray-100">
+                <div className="flex items-center gap-2">
+                  <div className={`w-8 h-8 rounded-full flex items-center justify-center ${draft.onlineOnly ? "bg-green-100 text-green-600" : "bg-gray-100 text-gray-400"}`}>
+                    <Wifi className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <span className="text-sm font-semibold text-gray-700 block">Online Now</span>
+                    <span className="text-[10px] text-gray-500">Only show active users</span>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setDraft(d => ({ ...d, onlineOnly: !d.onlineOnly }))}
+                  className={`w-10 h-5 rounded-full relative transition-colors ${draft.onlineOnly ? "bg-green-500" : "bg-gray-200"}`}
+                >
+                  <div className={`absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-transform ${draft.onlineOnly ? "translate-x-5.5" : "translate-x-0.5"}`} />
+                </button>
+              </div>
+
               {/* Distance Filter */}
               <div className="mb-5">
                 <label className="text-sm font-semibold text-gray-700 mb-2 block">
