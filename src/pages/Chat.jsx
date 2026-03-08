@@ -149,15 +149,32 @@ export default function Chat() {
     on("typing", handleTyping);
     on("stop_typing", handleStopTyping);
 
+    function handleMessagesRead(payload) {
+      if (payload?.match_id === matchId) {
+        refetch();
+      }
+    }
+    on("messages_read", handleMessagesRead);
+
+    function handleMessageReceived(payload) {
+      if (payload?.match_id === matchId) {
+        refetch();
+        messageService.markRead(matchId).catch(console.error);
+      }
+    }
+    on("message_received", handleMessageReceived);
+
     return () => {
       off("typing");
       off("stop_typing");
+      off("messages_read");
+      off("message_received");
       if (typingTimeoutRef.current) {
         clearTimeout(typingTimeoutRef.current);
         typingTimeoutRef.current = null;
       }
     };
-  }, [on, off, activeOtherEmail, matchId]);
+  }, [on, off, activeOtherEmail, matchId, refetch]);
 
   // Emit typing events when user is typing
   useEffect(() => {

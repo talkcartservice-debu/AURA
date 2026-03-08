@@ -103,15 +103,37 @@ router.post("/", auth, async (req, res) => {
 // Mark messages as read
 router.patch("/:matchId/read", auth, async (req, res) => {
   try {
+    const { matchId } = req.params;
+    
+    // Find the match to get the other user's email
+    const Match = (await import("../models/Match.js")).default;
+    const match = await Match.findById(matchId);
+    if (!match) return res.status(404).json({ error: "Match not found" });
+
+    const otherEmail = match.user1_email === req.user.email 
+      ? match.user2_email 
+      : match.user1_email;
+
     await Message.updateMany(
       { 
-        match_id: req.params.matchId, 
-        sender_email: { $ne: req.user.email },
+        match_id: matchId, 
+        sender_email: otherEmail,
         receiver_email: req.user.email,
         is_read: false 
       },
       { is_read: true }
     );
+
+    // Notify the sender that their messages were read
+    try {
+      emitToUser(otherEmail, "messages_read", {
+        match_id: matchId,
+        reader_email: req.user.email
+      });
+    } catch (socketErr) {
+      console.error("Socket emit messages_read error:", socketErr);
+    }
+
     res.json({ success: true });
   } catch (err) {
     res.status(500).json({ error: err.message });
