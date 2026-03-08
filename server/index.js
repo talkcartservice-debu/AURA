@@ -58,15 +58,24 @@ app.get("/api/health", (_req, res) => res.json({ status: "ok" }));
 
 const PORT = process.env.PORT || 5000;
 
-const MONGODB_URI = process.env.MONGODB_URI?.trim();
+let MONGODB_URI = process.env.MONGODB_URI?.trim();
 
 if (!MONGODB_URI) {
   console.error("❌ MONGODB_URI is not defined in environment variables");
   process.exit(1);
 }
 
+// Robust cleaning: Remove quotes, and the variable name if pasted in value
+MONGODB_URI = MONGODB_URI.replace(/^["']|["']$/g, "")
+                        .replace(/^MONGODB_URI\s*=\s*/i, "");
+
 // Diagnostic log (shows only the start of the string for security)
 console.log(`Connection string starts with: "${MONGODB_URI.substring(0, 15)}..."`);
+
+if (!MONGODB_URI.startsWith("mongodb://") && !MONGODB_URI.startsWith("mongodb+srv://")) {
+  console.error("❌ MONGODB_URI does not start with a valid scheme (mongodb:// or mongodb+srv://)");
+  process.exit(1);
+}
 
 mongoose
   .connect(MONGODB_URI)
