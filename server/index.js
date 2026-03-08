@@ -58,8 +58,15 @@ app.get("/api/health", (_req, res) => res.json({ status: "ok" }));
 
 const PORT = process.env.PORT || 5000;
 
+const MONGODB_URI = process.env.MONGODB_URI?.trim();
+
+if (!MONGODB_URI) {
+  console.error("❌ MONGODB_URI is not defined in environment variables");
+  process.exit(1);
+}
+
 mongoose
-  .connect(process.env.MONGODB_URI)
+  .connect(MONGODB_URI)
   .then(() => {
     console.log("Connected to MongoDB");
     httpServer.listen(PORT, "0.0.0.0", () => console.log(`Server running on port ${PORT}`));
