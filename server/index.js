@@ -65,6 +65,9 @@ if (!MONGODB_URI) {
   process.exit(1);
 }
 
+// Diagnostic log (shows only the start of the string for security)
+console.log(`Connection string starts with: "${MONGODB_URI.substring(0, 15)}..."`);
+
 mongoose
   .connect(MONGODB_URI)
   .then(() => {
