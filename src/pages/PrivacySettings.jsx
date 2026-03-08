@@ -108,7 +108,7 @@ export default function PrivacySettings() {
                   className="text-xs text-rose-600 hover:text-rose-700 font-medium flex items-center gap-1"
                 >
                   <Flame className="w-3 h-3" />
-                  Add Silver Premium features (+₦5,000/mo)
+                  Add Gold Premium features (+₦5,000/mo)
                 </button>
               )}
             </div>
@@ -164,7 +164,7 @@ export default function PrivacySettings() {
               {hasCasualAddon ? (
                 <>
                   <Flame className="w-5 h-5 text-rose-600" />
-                  <span className="font-bold text-rose-700">Silver Premium Active</span>
+                  <span className="font-bold text-rose-700">Gold Premium Active</span>
                 </>
               ) : (
                 <>
@@ -175,8 +175,8 @@ export default function PrivacySettings() {
           </div>
           <p className="text-xs text-gray-600">
             {hasCasualAddon 
-              ? "You have access to all Silver Premium privacy features including disappearing messages"
-              : "Upgrade to Silver Premium for disappearing messages and verified-only browsing"}
+              ? "You have access to all Gold Premium privacy features including disappearing messages"
+              : "Upgrade to Gold Premium for disappearing messages and verified-only browsing"}
           </p>
         </div>
       )}
@@ -283,7 +283,7 @@ export default function PrivacySettings() {
               onClick={() => navigate("/premium")}
               className="w-full rounded-xl bg-gradient-to-r from-rose-500 to-purple-600 text-white"
             >
-              Add Silver Premium - ₦5,000/mo
+              Add Gold Premium - ₦5,000/mo
             </Button>
           </div>
         )}

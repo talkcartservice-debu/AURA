@@ -286,7 +286,7 @@ export default function Premium() {
 
             <div className="bg-rose-50 rounded-2xl p-4 mb-6">
               <p className="text-xs text-rose-700">
-                <strong>Note:</strong> Silver Premium requires an active Silver Premium subscription. Total cost will be Silver + Silver Premium.
+                <strong>Note:</strong> Gold Premium requires an active Silver Premium subscription. Total cost will be Silver + Gold Premium.
               </p>
             </div>
 
@@ -304,7 +304,7 @@ export default function Premium() {
                 />
               </button>
               <span className="text-sm font-medium text-gray-700">
-                Add Silver Premium features for +{formatPrice(PRICING.casual_addon[billingCycle])}
+                Add Gold Premium features for +{formatPrice(PRICING.casual_addon[billingCycle])}
               </span>
             </div>
 
@@ -320,14 +320,14 @@ export default function Premium() {
               >
                 {loadingSubscribe
                   ? <Loader2 className="w-5 h-5 animate-spin" />
-                  : `Get Silver Premium (${formatPrice(PRICING.premium[billingCycle] + PRICING.casual_addon[billingCycle])})`}
+                  : `Get gold Premium (${formatPrice(PRICING.premium[billingCycle] + PRICING.casual_addon[billingCycle])})`}
               </Button>
             )}
 
             {hasCasualAddon && (
               <div className="bg-rose-50 rounded-2xl p-4 text-center">
                 <Flame className="w-8 h-8 text-rose-500 mx-auto mb-2" />
-                <p className="font-semibold text-rose-600">Silver Premium Active!</p>
+                <p className="font-semibold text-rose-600">Gold Premium Active!</p>
               </div>
             )}
           </div>
