@@ -128,6 +128,12 @@ const relationshipCoachSchema = new mongoose.Schema(
       },
       last_updated: Date,
     },
+    
+    // History of health scores for trend analysis
+    health_history: [{
+      score: Number,
+      timestamp: { type: Date, default: Date.now },
+    }],
   },
   { timestamps: true }
 );

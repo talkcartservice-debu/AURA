@@ -1,8 +1,8 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { relationshipCoachService } from "@/api/entities";
-import { Heart, MessageCircle, Lightbulb, Shield, Brain, Sparkles, Loader2 } from "lucide-react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Heart, MessageCircle, Lightbulb, Shield, Brain, Sparkles, Loader2, UserCheck, Star, Target, CheckCircle2 } from "lucide-react";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import ConversationStarterSelector from "./ConversationStarterSelector";
@@ -78,10 +78,14 @@ export default function AIRelationshipCoach() {
       )}
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList className="grid w-full grid-cols-5 mb-4">
+        <TabsList className="grid w-full grid-cols-6 mb-4">
           <TabsTrigger value="dashboard" className="flex items-center gap-2">
             <Sparkles className="w-4 h-4" />
             <span className="hidden sm:inline">Dashboard</span>
+          </TabsTrigger>
+          <TabsTrigger value="review" className="flex items-center gap-2">
+            <UserCheck className="w-4 h-4" />
+            <span className="hidden sm:inline">Review</span>
           </TabsTrigger>
           <TabsTrigger value="starters" className="flex items-center gap-2">
             <Sparkles className="w-4 h-4" />
@@ -103,6 +107,10 @@ export default function AIRelationshipCoach() {
 
         <TabsContent value="dashboard">
           <DashboardContent data={coachData} />
+        </TabsContent>
+
+        <TabsContent value="review">
+          <ProfileReviewSection />
         </TabsContent>
 
         <TabsContent value="starters">
@@ -171,9 +179,90 @@ function HealthScoreGauge({ label, score, color }) {
   );
 }
 
+function HealthTrendChart({ history }) {
+  if (!history || history.length < 2) return null;
+
+  const maxScore = 100;
+  const width = 400;
+  const height = 100;
+  const padding = 10;
+  
+  const points = history.map((entry, i) => {
+    const x = (i / (history.length - 1)) * (width - padding * 2) + padding;
+    const y = height - ((entry.score / maxScore) * (height - padding * 2) + padding);
+    return `${x},${y}`;
+  }).join(" ");
+
+  return (
+    <svg viewBox={`0 0 ${width} ${height}`} className="w-full h-full overflow-visible">
+      <defs>
+        <linearGradient id="chartGradient" x1="0%" y1="0%" x2="0%" y2="100%">
+          <stop offset="0%" stopColor="#ec4899" stopOpacity="0.2" />
+          <stop offset="100%" stopColor="#9333ea" stopOpacity="0" />
+        </linearGradient>
+      </defs>
+      
+      {/* Area under line */}
+      <path
+        d={`M ${points.split(' ')[0].split(',')[0]},${height} L ${points} L ${points.split(' ')[points.split(' ').length-1].split(',')[0]},${height} Z`}
+        fill="url(#chartGradient)"
+      />
+      
+      {/* The line */}
+      <polyline
+        fill="none"
+        stroke="url(#lineGradient)"
+        strokeWidth="3"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        points={points}
+      />
+      
+      <defs>
+        <linearGradient id="lineGradient" x1="0%" y1="0%" x2="100%" y2="0%">
+          <stop offset="0%" stopColor="#ec4899" />
+          <stop offset="100%" stopColor="#9333ea" />
+        </linearGradient>
+      </defs>
+
+      {/* Points */}
+      {history.map((entry, i) => {
+        const x = (i / (history.length - 1)) * (width - padding * 2) + padding;
+        const y = height - ((entry.score / maxScore) * (height - padding * 2) + padding);
+        return (
+          <circle
+            key={i}
+            cx={x}
+            cy={y}
+            r="4"
+            className="fill-white stroke-purple-600 stroke-2 hover:r-6 transition-all duration-200"
+          >
+            <title>{new Date(entry.timestamp).toLocaleDateString()}: {entry.score}%</title>
+          </circle>
+        );
+      })}
+    </svg>
+  );
+}
+
 function DashboardContent({ data }) {
   return (
     <div className="space-y-4">
+      {/* Health Trend Chart */}
+      {data?.health_history?.length > 1 && (
+        <Card className="p-4 overflow-hidden">
+          <CardHeader className="p-0 mb-4">
+            <CardTitle className="text-md flex items-center gap-2">
+              <Sparkles className="w-4 h-4 text-purple-600" />
+              Relationship Progress
+            </CardTitle>
+          </CardHeader>
+          <div className="h-32 w-full">
+            <HealthTrendChart history={data.health_history} />
+          </div>
+        </Card>
+      )}
+
       <Card>
         <CardHeader>
           <CardTitle className="text-lg">Recent Insights</CardTitle>
@@ -355,5 +444,128 @@ function EducationalCategory({ category }) {
         ))}
       </CardContent>
     </Card>
+  );
+}
+
+function ProfileReviewSection() {
+  const { data: review, isLoading, refetch, isFetching } = useQuery({
+    queryKey: ["profileReview"],
+    queryFn: relationshipCoachService.getProfileReview,
+    enabled: false, // Don't fetch on mount
+  });
+
+  return (
+    <div className="space-y-4">
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <UserCheck className="w-5 h-5 text-purple-600" />
+            AI Profile Consultant
+          </CardTitle>
+          <CardDescription>
+            Get professional feedback on your profile to attract better matches.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <Button 
+            onClick={() => refetch()} 
+            disabled={isLoading || isFetching}
+            className="w-full bg-gradient-to-r from-rose-500 to-purple-600 hover:from-rose-600 hover:to-purple-700"
+          >
+            {isLoading || isFetching ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Analyzing Profile...
+              </>
+            ) : (
+              "Review My Profile"
+            )}
+          </Button>
+        </CardContent>
+      </Card>
+
+      {review && (
+        <div className="space-y-4">
+          <Card className="border-rose-200 bg-rose-50/30">
+            <CardHeader>
+              <div className="flex justify-between items-center">
+                <CardTitle className="text-lg flex items-center gap-2">
+                  <Star className="w-5 h-5 text-yellow-500 fill-yellow-500" />
+                  Overall Score: {review.score}/100
+                </CardTitle>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <p className="text-gray-700 italic">"{review.overall_impression}"</p>
+            </CardContent>
+          </Card>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <Card className="border-green-200">
+              <CardHeader>
+                <CardTitle className="text-md flex items-center gap-2 text-green-700">
+                  <CheckCircle2 className="w-4 h-4" />
+                  Strengths
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <ul className="space-y-2">
+                  {review.strengths?.map((s, i) => (
+                    <li key={i} className="text-sm text-gray-600 flex items-start gap-2">
+                      <span className="text-green-500 mt-0.5">•</span>
+                      {s}
+                    </li>
+                  ))}
+                </ul>
+              </CardContent>
+            </Card>
+
+            <Card className="border-amber-200">
+              <CardHeader>
+                <CardTitle className="text-md flex items-center gap-2 text-amber-700">
+                  <Target className="w-4 h-4" />
+                  Room for Improvement
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <ul className="space-y-2">
+                  {review.improvements?.map((s, i) => (
+                    <li key={i} className="text-sm text-gray-600 flex items-start gap-2">
+                      <span className="text-amber-500 mt-0.5">•</span>
+                      {s}
+                    </li>
+                  ))}
+                </ul>
+              </CardContent>
+            </Card>
+          </div>
+
+          <Card className="border-purple-200 bg-purple-50/30">
+            <CardHeader>
+              <CardTitle className="text-md flex items-center gap-2 text-purple-700">
+                <Sparkles className="w-4 h-4" />
+                Suggested AI-Optimized Bio
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="p-4 bg-white rounded-xl border border-purple-100 relative">
+                <p className="text-sm text-gray-800 leading-relaxed">{review.suggested_bio}</p>
+                <Button 
+                  variant="ghost" 
+                  size="sm" 
+                  className="mt-4 text-xs text-purple-600 hover:text-purple-700 hover:bg-purple-50"
+                  onClick={() => {
+                    navigator.clipboard.writeText(review.suggested_bio);
+                    // Add toast notification if available
+                  }}
+                >
+                  Copy to Clipboard
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+    </div>
   );
 }

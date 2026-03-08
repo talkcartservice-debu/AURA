@@ -13,6 +13,7 @@ import {
   generateDateGuidance,
   getRedFlagsEducation,
   generateCommunicationTips,
+  generateProfileReview,
 } from "../utils/conversationCoachService.js";
 
 const router = Router();
@@ -179,10 +180,30 @@ router.get("/dashboard", auth, async (req, res) => {
     // Get unread insights
     const unreadCount = coachData.insights.filter(i => !i.read).length;
 
+    // Track health score history if not updated today
+    const today = new Date().setHours(0, 0, 0, 0);
+    const lastHistoryEntry = coachData.health_history?.[coachData.health_history.length - 1];
+    const lastEntryDate = lastHistoryEntry ? new Date(lastHistoryEntry.timestamp).setHours(0, 0, 0, 0) : null;
+
+    if (!lastEntryDate || lastEntryDate < today) {
+      coachData.health_history.push({
+        score: coachData.relationship_health.overall_score,
+        timestamp: new Date(),
+      });
+      
+      // Keep only last 30 days
+      if (coachData.health_history.length > 30) {
+        coachData.health_history.shift();
+      }
+      
+      await coachData.save();
+    }
+
     res.json({
       insights: recentInsights,
       unread_count: unreadCount,
       relationship_health: coachData.relationship_health,
+      health_history: coachData.health_history,
       total_tips_provided: coachData.communication_tips.length,
       red_flags_addressed: coachData.red_flags.filter(r => r.addressed).length,
     });
@@ -209,6 +230,45 @@ router.patch("/insights/:insightId/read", auth, async (req, res) => {
 
     res.json({ message: "Insight marked as read" });
   } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Get AI profile review
+router.get("/profile-review", auth, async (req, res) => {
+  try {
+    const profile = await UserProfile.findOne({ user_email: req.user.email });
+    if (!profile) {
+      return res.status(404).json({ error: "Profile not found" });
+    }
+
+    const review = await generateProfileReview(profile);
+
+    // Save to coach history as an insight
+    let coachRecord = await RelationshipCoach.findOne({ user_email: req.user.email });
+    if (!coachRecord) {
+      coachRecord = await RelationshipCoach.create({
+        user_email: req.user.email,
+        conversations: [],
+        red_flags: [],
+        communication_tips: [],
+        insights: [],
+      });
+    }
+
+    coachRecord.insights.push({
+      insight_type: "pattern_recognition",
+      title: "AI Profile Review Completed",
+      description: review.overall_impression,
+      actionable_advice: `Your profile score: ${review.score}/100. Check the Review tab for details.`,
+      priority: "high",
+    });
+
+    await coachRecord.save();
+
+    res.json(review);
+  } catch (err) {
+    console.error("Error generating profile review:", err);
     res.status(500).json({ error: err.message });
   }
 });

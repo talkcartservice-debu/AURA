@@ -162,6 +162,62 @@ export function generateConversationStarters(myProfile, otherProfile, match) {
 }
 
 /**
+ * Generate a professional review of the user's profile with improvement suggestions
+ */
+export async function generateProfileReview(userProfile) {
+  if (!userProfile) return null;
+
+  const prompt = `
+    You are AURA's AI Profile Consultant. Review the following dating profile and provide professional, actionable feedback.
+    
+    User Profile:
+    - Display Name: ${userProfile.display_name}
+    - Bio: "${userProfile.bio || "No bio provided"}"
+    - Dating Intent: ${userProfile.dating_intent?.replace(/_/g, " ")}
+    - Interests: ${userProfile.interests?.join(", ") || "None listed"}
+    - Values: ${userProfile.values?.join(", ") || "None listed"}
+    - Personality: ${userProfile.personality_tags?.join(", ") || "None listed"}
+    
+    Provide your review in JSON format with these keys:
+    1. "overall_impression": A brief summary of how the profile comes across (1-2 sentences).
+    2. "strengths": Array of 2-3 things that are working well.
+    3. "improvements": Array of 3 specific, actionable suggestions to make the profile more attractive/effective.
+    4. "suggested_bio": A rewritten, more engaging version of their bio (keep it under 300 characters).
+    5. "score": A numerical score from 1-100 for profile completeness and impact.
+    
+    Response MUST be valid JSON.
+  `;
+
+  const geminiResponse = await callGemini(prompt);
+  
+  if (geminiResponse) {
+    try {
+      // Clean up potential markdown formatting in response
+      const cleaned = geminiResponse.replace(/```json|```/g, "").trim();
+      return JSON.parse(cleaned);
+    } catch (err) {
+      console.error("Failed to parse profile review JSON:", err);
+    }
+  }
+
+  // Fallback if Gemini fails
+  return {
+    overall_impression: "Your profile provides a good foundation but could use more specific details to stand out.",
+    strengths: [
+      userProfile.interests?.length > 0 ? "You've listed several interests which helps start conversations." : "You have a clear display name.",
+      userProfile.dating_intent ? "Your dating intent is clear, which helps attract like-minded people." : "You've started setting up your profile."
+    ],
+    improvements: [
+      "Add more specific details to your bio that showcase your unique personality.",
+      "Ensure your interests reflect hobbies that are easy to talk about.",
+      "Consider adding more personality tags to give others a better sense of who you are."
+    ],
+    suggested_bio: userProfile.bio || "Hi! I'm looking for meaningful connections and shared adventures. Let's chat and see where things go!",
+    score: userProfile.bio ? 65 : 40
+  };
+}
+
+/**
  * Generate natural, contextual responses as a relationship coach
  */
 export async function generateCoachResponse(userMessage, userEmail) {

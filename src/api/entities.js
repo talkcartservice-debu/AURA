@@ -189,4 +189,6 @@ export const relationshipCoachService = {
     api.delete("/coach/chat/history").then((r) => r.data),
   setCoachingStyle: (style) =>
     api.put("/coach/chat/style", { style }).then((r) => r.data),
+  getProfileReview: () =>
+    api.get("/coach/profile-review").then((r) => r.data),
 };
