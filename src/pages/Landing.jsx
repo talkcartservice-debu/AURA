@@ -26,7 +26,6 @@ export default function Landing() {
   const navigate = useNavigate();
   const { hasRegisteredBiometric, authenticateWithBiometric } = useBiometricAuth();
   const [mode, setMode] = useState("login");
-  const [displayName, setDisplayName] = useState("");
   const [username, setUsername] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -78,7 +77,6 @@ export default function Landing() {
   const handleModeChange = (newMode) => {
     setMode(newMode);
     setErrors({});
-    setDisplayName("");
     setUsername("");
     setPassword("");
     setConfirmPassword("");
@@ -95,10 +93,6 @@ export default function Landing() {
 
     // Password validation for signup
     if (mode === "signup") {
-      if (!displayName.trim()) {
-        newErrors.displayName = "Display name is required";
-      }
-
       if (!username.trim()) {
         newErrors.username = "Username is required";
       } else if (!/^[a-zA-Z0-9_]{3,20}$/.test(username.trim())) {
@@ -129,7 +123,7 @@ export default function Landing() {
         navigate("/discover");
         // Biometric modal will auto-open via useEffect if needed
       } else {
-        await signup(email, password, displayName.trim(), username.trim());
+        await signup(email, password, username.trim());
         toast.success("Account created successfully!");
         navigate("/setup");
         // Don't auto-show biometric modal here - let user complete profile first
@@ -175,30 +169,9 @@ export default function Landing() {
 
       <div className="bg-white rounded-3xl shadow-2xl w-full max-w-sm p-6">
         <form onSubmit={handleSubmit} className="space-y-3">
-          {/* Email Field */}
+          {/* Signup Fields */}
           {mode === "signup" && (
             <>
-              {/* Display Name */}
-              <div>
-                <Input
-                  type="text"
-                  placeholder="Display name"
-                  value={displayName}
-                  onChange={(e) => {
-                    setDisplayName(e.target.value);
-                    if (errors.displayName) setErrors({ ...errors, displayName: null });
-                  }}
-                  className={`rounded-xl ${errors.displayName ? "border-red-500 focus-visible:ring-red-500" : ""}`}
-                  required
-                />
-                {errors.displayName && (
-                  <div className="flex items-center gap-1 mt-1 text-xs text-red-600">
-                    <AlertCircle className="w-3 h-3" />
-                    <span>{errors.displayName}</span>
-                  </div>
-                )}
-              </div>
-
               {/* Username */}
               <div>
                 <Input

@@ -35,11 +35,11 @@ export function AuthProvider({ children }) {
     return data;
   };
 
-  const signup = async (email, password, displayName, username) => {
+  const signup = async (email, password, username, displayName = null) => {
     const data = await authService.signup({
       email,
       password,
-      display_name: displayName,
+      display_name: displayName || username,
       username,
     });
     localStorage.setItem("aura_token", data.token);
