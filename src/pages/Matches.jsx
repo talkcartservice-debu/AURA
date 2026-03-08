@@ -4,7 +4,8 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import ProfileAvatar from "@/components/ProfileAvatar";
 import OnlineStatusBadge from "@/components/ui/OnlineStatusBadge";
-import { Heart, Loader2, MessageCircle, Star } from "lucide-react";
+import EmptyState from "@/components/ui/EmptyState";
+import { Heart, Loader2, MessageCircle, Star, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import MatchFeedbackModal from "@/components/matches/MatchFeedbackModal";
 import { toast } from "sonner";
@@ -47,7 +48,14 @@ export default function Matches() {
         <Heart className="w-6 h-6 text-rose-500 fill-rose-500" /> Matches
       </h1>
       {(!matches || matches.length === 0) ? (
-        <div className="text-center py-20"><p className="text-gray-400">No matches yet. Keep discovering!</p></div>
+        <EmptyState
+          icon={Users}
+          title="No matches yet"
+          description="Keep swiping! Your mutual matches will appear here once you both express interest in each other."
+          actionLabel="Start Swiping"
+          onAction={() => navigate("/discover")}
+          className="py-12"
+        />
       ) : (
         <div className="space-y-3">
           {matches.map((m) => {

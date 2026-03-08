@@ -4,6 +4,8 @@ import DailyMatch from "../models/DailyMatch.js";
 import Match from "../models/Match.js";
 import MatchFeedback from "../models/MatchFeedback.js";
 import UserProfile from "../models/UserProfile.js";
+import Report from "../models/Report.js";
+import Message from "../models/Message.js";
 import { calculateDistance, getLocationCompatibility } from "../utils/locationService.js";
 
 const router = Router();
@@ -321,6 +323,60 @@ router.post("/feedback", auth, async (req, res) => {
       user_email: req.user.email,
     });
     res.status(201).json(feedback);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Unmatch a user
+router.delete("/:id", auth, async (req, res) => {
+  try {
+    const match = await Match.findById(req.params.id);
+    if (!match) return res.status(404).json({ error: "Match not found" });
+
+    // Verify user is part of the match
+    if (match.user1_email !== req.user.email && match.user2_email !== req.user.email) {
+      return res.status(403).json({ error: "Unauthorized" });
+    }
+
+    // Delete the match
+    await Match.findByIdAndDelete(req.params.id);
+
+    // Optionally delete messages (or they'll just be orphaned)
+    await Message.deleteMany({ match_id: req.params.id });
+
+    res.json({ message: "Unmatched successfully" });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Report a match
+router.post("/report", auth, async (req, res) => {
+  try {
+    const { match_id, reason, details, reported_email } = req.body;
+
+    // Create the report
+    const report = await Report.create({
+      reporter_email: req.user.email,
+      reported_email,
+      reason,
+      details,
+      match_id,
+    });
+
+    // If there's a match_id, unmatch automatically
+    if (match_id) {
+      const match = await Match.findById(match_id);
+      if (match) {
+        if (match.user1_email === req.user.email || match.user2_email === req.user.email) {
+          await Match.findByIdAndDelete(match_id);
+          await Message.deleteMany({ match_id });
+        }
+      }
+    }
+
+    res.status(201).json(report);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

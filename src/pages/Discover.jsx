@@ -3,6 +3,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { matchService, likeService, profileService, subscriptionService } from "@/api/entities";
 import MatchCard from "@/components/discover/MatchCard";
 import SearchFilters from "@/components/discover/SearchFilters";
+import DiscoverSkeleton from "@/components/discover/DiscoverSkeleton";
 import UserNotRegisteredError from "@/components/UserNotRegisteredError";
 import OnlineStatusBadge from "@/components/ui/OnlineStatusBadge";
 import { Loader2, Sparkles, Crown } from "lucide-react";
@@ -147,7 +148,7 @@ export default function Discover() {
       </div>
       <SearchFilters onFiltersChange={setFilters} />
       {isLoading ? (
-        <div className="flex items-center justify-center py-20"><Loader2 className="w-8 h-8 animate-spin text-rose-500" /></div>
+        <DiscoverSkeleton />
       ) : filtered.length === 0 ? (
         <div className="text-center py-20">
           <p className="text-gray-400">No more matches for today. Come back tomorrow!</p>

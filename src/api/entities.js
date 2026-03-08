@@ -22,6 +22,8 @@ export const matchService = {
   updateDaily: (id, status) => api.patch(`/matches/daily/${id}`, { status }).then((r) => r.data),
   getMutual: () => api.get("/matches/mutual").then((r) => r.data),
   submitFeedback: (data) => api.post("/matches/feedback", data).then((r) => r.data),
+  unmatch: (id) => api.delete(`/matches/${id}`).then((r) => r.data),
+  report: (data) => api.post("/matches/report", data).then((r) => r.data),
 };
 
 // Likes

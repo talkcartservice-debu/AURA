@@ -5,10 +5,26 @@ import { messageService, matchService, profileService, callService } from "@/api
 import { useAuth } from "@/lib/AuthContext";
 import ProfileAvatar from "@/components/ProfileAvatar";
 import OnlineStatusBadge from "@/components/ui/OnlineStatusBadge";
+import EmptyState from "@/components/ui/EmptyState";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Send, Loader2, ArrowLeft, Check, CheckCheck } from "lucide-react";
+import { Send, Loader2, ArrowLeft, Check, CheckCheck, MoreVertical, ShieldAlert, UserMinus, MessageCircleOff, Search } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { 
+  DropdownMenu, 
+  DropdownMenuContent, 
+  DropdownMenuItem, 
+  DropdownMenuTrigger 
+} from "@/components/ui/dropdown-menu";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Textarea } from "@/components/ui/textarea";
 import CallButtons from "@/components/calls/CallButtons";
 import { toast } from "sonner";
 import { useSocket } from "@/hooks/useSocket";
@@ -31,6 +47,11 @@ export default function Chat() {
   const [isPartnerTyping, setIsPartnerTyping] = useState(false);
   const typingTimeoutRef = useRef(null);
   const callContext = useCallContext();
+  const [showReportDialog, setShowReportDialog] = useState(false);
+  const [reportReason, setReportReason] = useState("");
+  const [reportDetails, setReportDetails] = useState("");
+  const [isReporting, setIsReporting] = useState(false);
+  const [isUnmatching, setIsUnmatching] = useState(false);
 
   const { data: matches } = useQuery({ queryKey: ["mutualMatches"], queryFn: matchService.getMutual });
   const { data: missedCalls } = useQuery({
@@ -213,7 +234,14 @@ export default function Chat() {
         )}
 
         {!matches || matches.length === 0 ? (
-          <p className="text-gray-400 text-center py-20">No matches yet. Start discovering!</p>
+          <EmptyState
+            icon={MessageCircleOff}
+            title="No messages yet"
+            description="Your matches will appear here once you both like each other. Start discovering new profiles!"
+            actionLabel="Discover Profiles"
+            onAction={() => navigate("/discover")}
+            className="py-12"
+          />
         ) : (
           <div className="space-y-2">
             {missedList.length > 0 && (
@@ -326,6 +354,41 @@ export default function Chat() {
     }
   }
 
+  async function handleUnmatch() {
+    if (!matchId) return;
+    if (!confirm("Are you sure you want to unmatch? This will delete your conversation.")) return;
+    setIsUnmatching(true);
+    try {
+      await matchService.unmatch(matchId);
+      toast.success("Unmatched successfully");
+      navigate("/matches");
+    } catch (err) {
+      toast.error(err.response?.data?.error || "Failed to unmatch");
+    } finally {
+      setIsUnmatching(false);
+    }
+  }
+
+  async function handleReportSubmit() {
+    if (!matchId || !reportReason) return;
+    setIsReporting(true);
+    try {
+      await matchService.report({
+        match_id: matchId,
+        reported_email: activeOtherEmail,
+        reason: reportReason,
+        details: reportDetails
+      });
+      toast.success("User reported and unmatched");
+      setShowReportDialog(false);
+      navigate("/matches");
+    } catch (err) {
+      toast.error(err.response?.data?.error || "Failed to report");
+    } finally {
+      setIsReporting(false);
+    }
+  }
+
   return (
     <div className="max-w-lg mx-auto flex flex-col h-[calc(100vh-4rem)]">
       <div className="p-4 border-b border-gray-100 flex items-center justify-between">
@@ -383,8 +446,78 @@ export default function Chat() {
           {matchId && activeOtherEmail && (
             <CallButtons matchId={matchId} receiverEmail={activeOtherEmail} />
           )}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" size="icon" className="rounded-full">
+                <MoreVertical className="w-5 h-5 text-gray-500" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="rounded-2xl">
+              <DropdownMenuItem 
+                onClick={handleUnmatch}
+                disabled={isUnmatching}
+                className="text-gray-600 gap-2 cursor-pointer"
+              >
+                <UserMinus className="w-4 h-4" /> Unmatch
+              </DropdownMenuItem>
+              <DropdownMenuItem 
+                onClick={() => setShowReportDialog(true)}
+                className="text-rose-600 focus:text-rose-600 gap-2 cursor-pointer"
+              >
+                <ShieldAlert className="w-4 h-4" /> Report User
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
       </div>
+
+      <Dialog open={showReportDialog} onOpenChange={setShowReportDialog}>
+        <DialogContent className="rounded-3xl max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Report User</DialogTitle>
+            <DialogDescription>
+              Tell us why you're reporting this user. They will be automatically unmatched.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <label className="text-xs font-semibold text-gray-500 uppercase">Reason</label>
+              <select 
+                className="w-full p-3 rounded-xl border border-gray-100 bg-gray-50 text-sm focus:outline-none focus:ring-2 focus:ring-rose-500"
+                value={reportReason}
+                onChange={(e) => setReportReason(e.target.value)}
+              >
+                <option value="">Select a reason</option>
+                <option value="inappropriate_behavior">Inappropriate behavior</option>
+                <option value="spam_or_scam">Spam or scam</option>
+                <option value="fake_profile">Fake profile</option>
+                <option value="harassment">Harassment</option>
+                <option value="other">Other</option>
+              </select>
+            </div>
+            <div className="space-y-2">
+              <label className="text-xs font-semibold text-gray-500 uppercase">Details (Optional)</label>
+              <Textarea 
+                placeholder="Provide more information..."
+                className="rounded-xl min-h-[100px]"
+                value={reportDetails}
+                onChange={(e) => setReportDetails(e.target.value)}
+              />
+            </div>
+          </div>
+          <DialogFooter className="flex flex-row gap-2 sm:justify-end">
+            <Button variant="ghost" onClick={() => setShowReportDialog(false)} className="rounded-xl">Cancel</Button>
+            <Button 
+              onClick={handleReportSubmit} 
+              disabled={!reportReason || isReporting}
+              className="rounded-xl bg-rose-600 text-white hover:bg-rose-700"
+            >
+              {isReporting ? <Loader2 className="w-4 h-4 animate-spin" /> : "Submit Report"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       <div className="flex-1 overflow-y-auto p-4 space-y-3">
         {(messages || []).map((m) => {
           const isOwn = m.sender_email === user?.email;
