@@ -9,7 +9,7 @@ import Chat from "@/pages/Chat";
 import Groups from "@/pages/Groups";
 import MyProfile from "@/pages/MyProfile";
 import Verification from "@/pages/Verification";
-import HotLove from "@/pages/HotLove";
+import SilverPremium from "@/pages/SilverPremium";
 import Premium from "@/pages/Premium";
 import PrivacySettings from "@/pages/PrivacySettings";
 import BlindDatePage from "@/pages/BlindDate";
@@ -56,7 +56,7 @@ export default function App() {
         <Route path="/verification" element={<Verification />} />
         <Route path="/premium" element={<Premium />} />
         <Route path="/privacy" element={<PrivacySettings />} />
-        <Route path="/silver" element={<HotLove />} />
+        <Route path="/silver" element={<SilverPremium />} />
         <Route path="/blind-date" element={<BlindDatePage />} />
       </Route>
       <Route path="*" element={<PageNotFound />} />

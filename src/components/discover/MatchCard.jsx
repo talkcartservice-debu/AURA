@@ -307,7 +307,7 @@ export default function MatchCard({
                       {profile.is_hot_love && (
                         <Flame
                           className="w-4 h-4 text-orange-300 fill-orange-400/30 flex-shrink-0"
-                          title="Hot Love member"
+                          title="Silver Premium member"
                         />
                       )}
                     </h3>
@@ -360,7 +360,7 @@ export default function MatchCard({
                     {profile.is_hot_love && (
                       <Flame
                         className="w-4 h-4 text-orange-300 fill-orange-400/30 flex-shrink-0"
-                        title="Hot Love member"
+                        title="Silver Premium member"
                       />
                     )}
                   </h3>

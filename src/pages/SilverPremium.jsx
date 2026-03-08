@@ -6,7 +6,7 @@ import { useState, useEffect } from "react";
 import { useSearchParams } from "react-router-dom";
 import { toast } from "sonner";
 
-export default function HotLove() {
+export default function SilverPremium() {
   const qc = useQueryClient();
   const { data: sub, refetch } = useQuery({ queryKey: ["subscription"], queryFn: subscriptionService.get });
   const [loading, setLoading] = useState(false);
@@ -72,7 +72,7 @@ export default function HotLove() {
         <h1 className="text-3xl font-black mb-2">Silver Premium</h1>
         <p className="text-white/80 text-sm">Supercharge your dating experience</p>
         <div className="mt-4 bg-white/20 backdrop-blur-sm rounded-2xl px-4 py-2 inline-block">
-          <span className="text-2xl font-black">\u20A65,000</span>
+          <span className="text-2xl font-black">₦5,000</span>
           <span className="text-white/80 text-sm">/month</span>
         </div>
       </div>
@@ -98,7 +98,7 @@ export default function HotLove() {
         ) : isActive ? (
           <div className="text-center py-4 bg-rose-50 rounded-2xl">
             <Flame className="w-8 h-8 text-rose-500 mx-auto mb-2" />
-            <p className="text-rose-600 font-semibold">Silver Premium is active on your account! \u2764\ufe0f\u200d\ud83d\udd25</p>
+            <p className="text-rose-600 font-semibold">Silver Premium is active on your account! ❤️‍🔥</p>
             {sub?.expires_at && (
               <p className="text-xs text-rose-400 mt-1">Active until {new Date(sub.expires_at).toLocaleDateString()}</p>
             )}

@@ -104,7 +104,7 @@ export default function MyProfile() {
 
   async function handleToggleIncognito() {
     if (!isHotLove) {
-      toast.error("Incognito mode is a Gold Premium feature");
+      toast.error("Incognito mode is a Silver Premium feature");
       navigate("/silver");
       return;
     }

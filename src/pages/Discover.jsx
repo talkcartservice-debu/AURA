@@ -128,8 +128,8 @@ export default function Discover() {
           <div className="flex items-center gap-2">
             <Crown className="w-5 h-5" />
             <div className="text-xs">
-              <div className="font-semibold">Unlock more matches with Premium</div>
-              <div className="text-white/80">Upgrade to Silver/Gold Premium for advanced filters & visibility.</div>
+              <div className="font-semibold">Unlock more matches with Silver Premium</div>
+              <div className="text-white/80">Upgrade to Silver Premium for advanced filters & visibility.</div>
             </div>
           </div>
           <button

@@ -10,16 +10,16 @@ const PAYSTACK_SECRET = process.env.PAYSTACK_SECRET_KEY;
 // Pricing in NGN kobo
 const PRICING = {
   premium: {
-    monthly: 1999000,      // ₦19,999
-    quarterly: 4999000,    // ₦49,999
-    biannual: 8999000,     // ₦89,999
-    annual: 14999000,      // ₦149,999
+    monthly: 500000,       // ₦5,000
+    quarterly: 1250000,    // ₦12,500
+    biannual: 2250000,     // ₦22,500
+    annual: 3750000,       // ₦37,500
   },
   casual_addon: {
-    monthly: 999000,       // ₦9,999
-    quarterly: 2499000,    // ₦24,999
-    biannual: 4499000,     // ₦44,999
-    annual: 7999000,       // ₦79,999
+    monthly: 500000,       // ₦5,000
+    quarterly: 1250000,    // ₦12,500
+    biannual: 2250000,     // ₦22,500
+    annual: 3750000,       // ₦37,500
   },
 };
 

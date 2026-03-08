@@ -18,16 +18,16 @@ const BILLING_CYCLES = [
 
 const PRICING = {
   premium: {
-    monthly: 19999,
-    quarterly: 49999,
-    biannual: 89999,
-    annual: 149999,
+    monthly: 5000,
+    quarterly: 12500,
+    biannual: 22500,
+    annual: 37500,
   },
   casual_addon: {
-    monthly: 9999,
-    quarterly: 24999,
-    biannual: 44999,
-    annual: 79999,
+    monthly: 5000,
+    quarterly: 12500,
+    biannual: 22500,
+    annual: 37500,
   },
 };
 
@@ -151,10 +151,10 @@ export default function Premium() {
       <div className="text-center mb-8">
         <div className="flex items-center justify-center gap-2 mb-4">
           <Crown className="w-12 h-12 text-purple-600" />
-          <h1 className="text-4xl font-black text-gray-900">AURA Premium</h1>
+          <h1 className="text-4xl font-black text-gray-900">Silver Premium</h1>
         </div>
         <p className="text-lg text-gray-600 max-w-2xl mx-auto">
-          AI-Powered Intent-Based Dating for Serious Relationships & Meaningful Connections
+          Supercharge your dating experience
         </p>
       </div>
 
@@ -196,9 +196,9 @@ export default function Premium() {
               <div>
                 <div className="flex items-center gap-3 mb-2">
                   <Crown className="w-8 h-8" />
-                  <h2 className="text-3xl font-black">AURA Premium</h2>
+                  <h2 className="text-3xl font-black">Silver Premium</h2>
                 </div>
-                <p className="text-white/90 text-sm">For serious relationship seekers</p>
+                <p className="text-white/90 text-sm">Supercharge your dating experience</p>
               </div>
               <div className="text-right">
                 <div className="text-4xl font-black">
@@ -238,7 +238,7 @@ export default function Premium() {
                   disabled={loadingSubscribe}
                   className="w-full h-14 rounded-2xl bg-white text-purple-600 hover:bg-white/90 font-bold text-lg"
                 >
-                  {loadingSubscribe ? <Loader2 className="w-6 h-6 animate-spin" /> : "Start Premium Trial"}
+                  {loadingSubscribe ? <Loader2 className="w-6 h-6 animate-spin" /> : "Start Silver Premium Trial"}
                 </Button>
                 <p className="text-xs text-white/80 text-center">
                   Includes <span className="font-semibold">Silver Premium</span> membership.
@@ -286,7 +286,7 @@ export default function Premium() {
 
             <div className="bg-rose-50 rounded-2xl p-4 mb-6">
               <p className="text-xs text-rose-700">
-                <strong>Note:</strong> Gold Premium requires an active Silver Premium subscription. Total cost will be Silver + Gold Premium.
+                <strong>Note:</strong> Silver Premium requires an active Silver Premium subscription. Total cost will be Silver + Silver Premium.
               </p>
             </div>
 
@@ -304,7 +304,7 @@ export default function Premium() {
                 />
               </button>
               <span className="text-sm font-medium text-gray-700">
-                Add Gold Premium features for +{formatPrice(PRICING.casual_addon[billingCycle])}
+                Add Silver Premium features for +{formatPrice(PRICING.casual_addon[billingCycle])}
               </span>
             </div>
 
@@ -320,14 +320,14 @@ export default function Premium() {
               >
                 {loadingSubscribe
                   ? <Loader2 className="w-5 h-5 animate-spin" />
-                  : `Get Gold Premium (${formatPrice(PRICING.premium[billingCycle] + PRICING.casual_addon[billingCycle])})`}
+                  : `Get Silver Premium (${formatPrice(PRICING.premium[billingCycle] + PRICING.casual_addon[billingCycle])})`}
               </Button>
             )}
 
             {hasCasualAddon && (
               <div className="bg-rose-50 rounded-2xl p-4 text-center">
                 <Flame className="w-8 h-8 text-rose-500 mx-auto mb-2" />
-                <p className="font-semibold text-rose-600">Gold Premium Active!</p>
+                <p className="font-semibold text-rose-600">Silver Premium Active!</p>
               </div>
             )}
           </div>
