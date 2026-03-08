@@ -106,7 +106,7 @@ export default function SilverPremium() {
         ) : (
           <div>
             <Button onClick={handleSubscribe} disabled={loading} className="w-full rounded-2xl h-12 bg-gradient-to-r from-orange-500 to-rose-600 text-white font-semibold text-lg">
-              {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : "Pay with Paystack"}
+              {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : "buy silver"}
             </Button>
             <p className="text-xs text-gray-400 text-center mt-3">Secure payment powered by Paystack</p>
           </div>

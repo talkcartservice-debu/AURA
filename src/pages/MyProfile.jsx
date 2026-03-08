@@ -65,7 +65,7 @@ export default function MyProfile() {
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const [togglingIncognito, setTogglingIncognito] = useState(false);
 
-  const isHotLove = sub?.plan === "hot_love" && sub?.is_active;
+  const isSilverPremium = sub?.plan === "premium" && sub?.is_active;
 
   function startEdit() {
     setForm({ ...profile });
@@ -103,7 +103,7 @@ export default function MyProfile() {
   }
 
   async function handleToggleIncognito() {
-    if (!isHotLove) {
+    if (!isSilverPremium) {
       toast.error("Incognito mode is a Silver Premium feature");
       navigate("/silver");
       return;
@@ -178,7 +178,7 @@ export default function MyProfile() {
               {profile?.age && <span className="font-normal text-gray-400">, {profile.age}</span>}
               {profile?.is_verified && <ShieldCheck className="w-4 h-4 text-blue-500" />}
               {profile?.is_personality_verified && <Brain className="w-4 h-4 text-purple-500" />}
-              {profile?.is_hot_love && <Flame className="w-4 h-4 text-orange-500" />}
+              {profile?.is_premium && <Flame className="w-4 h-4 text-orange-500" />}
             </h2>
             {user?.username && (
               <p className="text-sm text-gray-400">@{user.username}</p>
@@ -315,8 +315,8 @@ export default function MyProfile() {
           </div>
         )}
       </button>
-      {!isHotLove && (
-        <p className="text-xs text-gray-400 text-center -mt-2">Requires Premium subscription</p>
+      {!isSilverPremium && (
+        <p className="text-xs text-gray-400 text-center -mt-2">Requires Silver Premium subscription</p>
       )}
 
       {/* Password Update Section */}
