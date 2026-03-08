@@ -3,6 +3,7 @@ import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import User from "../models/User.js";
 import UserProfile from "../models/UserProfile.js";
+import auth from "../middleware/auth.js";
 
 const router = Router();
 
@@ -129,6 +130,28 @@ router.put("/update-password", async (req, res) => {
     await user.save();
 
     res.json({ message: "Password updated" });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.post("/push-subscription", auth, async (req, res) => {
+  try {
+    const { subscription } = req.body;
+    if (!subscription || !subscription.endpoint) {
+      return res.status(400).json({ error: "Subscription required" });
+    }
+
+    // Upsert subscription (if endpoint exists, replace; if not, add)
+    await User.findByIdAndUpdate(req.user.id, {
+      $pull: { push_subscriptions: { endpoint: subscription.endpoint } }
+    });
+    
+    await User.findByIdAndUpdate(req.user.id, {
+      $push: { push_subscriptions: subscription },
+    });
+
+    res.json({ success: true });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

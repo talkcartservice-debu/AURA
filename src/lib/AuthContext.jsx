@@ -1,5 +1,7 @@
 import { createContext, useContext, useState, useEffect } from "react";
 import { authService } from "@/api/entities";
+import { requestNotificationPermission, subscribeToPushNotifications } from "./pushNotifications";
+import { toast } from "sonner";
 
 const AuthContext = createContext(null);
 
@@ -22,6 +24,27 @@ export function AuthProvider({ children }) {
       setLoading(false);
     }
   }, []);
+
+  useEffect(() => {
+    if (user) {
+      // Independent Web Push registration
+      const setupPush = async () => {
+        try {
+          const granted = await requestNotificationPermission();
+          if (granted) {
+            const subscription = await subscribeToPushNotifications();
+            if (subscription) {
+              await authService.registerPushSubscription(subscription);
+            }
+          }
+        } catch (err) {
+          console.error("Push registration error:", err);
+        }
+      };
+      
+      setupPush();
+    }
+  }, [user]);
 
   const login = async (email, password) => {
     const data = await authService.login({ email, password });

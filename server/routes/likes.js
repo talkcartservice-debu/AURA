@@ -5,6 +5,7 @@ import Match from "../models/Match.js";
 import DailyMatch from "../models/DailyMatch.js";
 import Subscription from "../models/Subscription.js";
 import { emitToUser } from "../signaling.js";
+import { sendNotificationToUser } from "../utils/notificationService.js";
 
 const router = Router();
 
@@ -73,6 +74,24 @@ router.post("/", auth, async (req, res) => {
         });
       } catch (notifyErr) {
         console.error("Socket notify match_created error:", notifyErr);
+      }
+
+      // Send push notifications
+      try {
+        await Promise.all([
+          sendNotificationToUser(to_email, {
+            title: "New Match! ❤️",
+            body: "You have a new mutual match on AURAsoul!",
+            data: { type: "MATCH", match_id: match._id.toString() }
+          }),
+          sendNotificationToUser(req.user.email, {
+            title: "New Match! ❤️",
+            body: `You matched with someone new!`,
+            data: { type: "MATCH", match_id: match._id.toString() }
+          })
+        ]);
+      } catch (pushErr) {
+        console.error("Push notification error:", pushErr);
       }
     }
 

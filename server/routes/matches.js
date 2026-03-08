@@ -339,8 +339,19 @@ router.delete("/:id", auth, async (req, res) => {
       return res.status(403).json({ error: "Unauthorized" });
     }
 
+    const other_email = match.user1_email === req.user.email ? match.user2_email : match.user1_email;
+
     // Delete the match
     await Match.findByIdAndDelete(req.params.id);
+
+    // Delete likes to reset state
+    const Like = (await import("../models/Like.js")).default;
+    await Like.deleteMany({
+      $or: [
+        { from_email: req.user.email, to_email: other_email },
+        { from_email: other_email, to_email: req.user.email }
+      ]
+    });
 
     // Optionally delete messages (or they'll just be orphaned)
     await Message.deleteMany({ match_id: req.params.id });

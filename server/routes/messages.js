@@ -2,6 +2,8 @@ import { Router } from "express";
 import auth from "../middleware/auth.js";
 import Message from "../models/Message.js";
 import { emitToUser } from "../signaling.js";
+import { sendNotificationToUser } from "../utils/notificationService.js";
+import UserProfile from "../models/UserProfile.js";
 
 const router = Router();
 
@@ -91,6 +93,20 @@ router.post("/", auth, async (req, res) => {
       });
     } catch (notifyErr) {
       console.error("Socket notify message_received error:", notifyErr);
+    }
+
+    // Send push notification
+    try {
+      const senderProfile = await UserProfile.findOne({ user_email: req.user.email });
+      const senderName = senderProfile?.display_name || "Someone";
+
+      await sendNotificationToUser(receiver_email, {
+        title: `Message from ${senderName}`,
+        body: content,
+        data: { type: "MESSAGE", match_id: match_id.toString() }
+      });
+    } catch (pushErr) {
+      console.error("Push notification error:", pushErr);
     }
 
     res.status(201).json(message);
