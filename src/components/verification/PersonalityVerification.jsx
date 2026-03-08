@@ -76,23 +76,27 @@ export default function PersonalityVerification({ onComplete }) {
       <div className="bg-gradient-to-br from-purple-50 to-white border border-purple-100 rounded-3xl p-8 mb-8 shadow-sm">
         <p className="text-purple-900 font-bold text-center text-lg leading-tight">{current.q}</p>
       </div>
-      <div className="flex gap-2">
-        {[1, 2, 3, 4, 5].map((n, i) => (
-          <Button
-            key={n}
-            onClick={() => handleAnswer(n)}
-            disabled={saving}
-            variant="outline"
-            className={`flex-1 rounded-2xl h-14 text-lg font-black transition-all duration-200 ${buttonColors[i]}`}
-          >
-            {n}
-          </Button>
-        ))}
+      <div className="flex gap-4">
+        <Button
+          onClick={() => handleAnswer(1)}
+          disabled={saving}
+          variant="outline"
+          className="flex-1 rounded-2xl h-16 text-lg font-bold border-red-100 text-red-600 hover:bg-red-50 hover:border-red-200 transition-all"
+        >
+          Disagree
+        </Button>
+        <Button
+          onClick={() => handleAnswer(5)}
+          disabled={saving}
+          variant="outline"
+          className="flex-1 rounded-2xl h-16 text-lg font-bold border-green-100 text-green-600 hover:bg-green-50 hover:border-green-200 transition-all"
+        >
+          Agree
+        </Button>
       </div>
-      <div className="flex justify-between text-[10px] font-bold uppercase tracking-wider text-gray-400 mt-4 px-1">
-        <span className="text-red-400">Strongly Disagree</span>
-        <span className="text-green-500">Strongly Agree</span>
-      </div>
+      <p className="text-center text-[10px] text-gray-400 mt-6 uppercase tracking-widest font-medium">
+        Choose honestly to find better matches
+      </p>
     </div>
   );
 }
