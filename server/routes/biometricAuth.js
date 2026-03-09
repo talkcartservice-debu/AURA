@@ -1,5 +1,6 @@
 import { Router } from "express";
 import crypto from "crypto";
+import jwt from "jsonwebtoken";
 import User from "../models/User.js";
 import UserProfile from "../models/UserProfile.js";
 
@@ -115,7 +116,8 @@ router.post("/verify-registration", async (req, res) => {
     const clientData = JSON.parse(Buffer.from(client_data_json, "base64").toString());
     
     // Verify challenge matches
-    if (clientData.challenge !== challengeData.challenge) {
+    const expectedChallenge = Buffer.from(challengeData.challenge, "hex").toString("base64").replace(/\+/g, "-").replace(/\//g, "_").replace(/=/g, "");
+    if (clientData.challenge !== expectedChallenge) {
       return res.status(400).json({ error: "Invalid challenge" });
     }
 
@@ -232,7 +234,8 @@ router.post("/verify-authentication", async (req, res) => {
     const clientData = JSON.parse(Buffer.from(client_data_json, "base64").toString());
     
     // Verify challenge matches
-    if (clientData.challenge !== challengeData.challenge) {
+    const expectedChallenge = Buffer.from(challengeData.challenge, "hex").toString("base64").replace(/\+/g, "-").replace(/\//g, "_").replace(/=/g, "");
+    if (clientData.challenge !== expectedChallenge) {
       return res.status(400).json({ error: "Invalid challenge" });
     }
 
@@ -253,7 +256,6 @@ router.post("/verify-authentication", async (req, res) => {
     // 3. Check counter for replay attacks
 
     // Generate JWT token
-    const jwt = require("jsonwebtoken");
     const user = await User.findOne({ email: email.toLowerCase() });
     
     if (!user) {
