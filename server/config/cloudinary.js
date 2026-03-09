@@ -8,6 +8,10 @@ cloudinary.config({
   api_secret: process.env.CLOUDINARY_API_SECRET,
 });
 
+if (!process.env.CLOUDINARY_CLOUD_NAME || process.env.CLOUDINARY_CLOUD_NAME === 'your_cloud_name') {
+  console.warn("⚠️  Cloudinary Cloud Name is not configured in .env");
+}
+
 const storage = new CloudinaryStorage({
   cloudinary,
   params: {

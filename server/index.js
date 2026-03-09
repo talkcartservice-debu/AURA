@@ -60,6 +60,16 @@ app.use("/api/admin", adminRoutes);
 // Health check
 app.get("/api/health", (_req, res) => res.json({ status: "ok" }));
 
+// Global error handler
+app.use((err, req, res, next) => {
+  console.error("Unhandled error:", err);
+  res.status(500).json({ 
+    error: "Internal Server Error", 
+    message: err.message,
+    stack: process.env.NODE_ENV === 'development' ? err.stack : undefined
+  });
+});
+
 const PORT = process.env.PORT || 5000;
 
 let MONGODB_URI = process.env.MONGODB_URI?.trim();

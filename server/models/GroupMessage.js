@@ -4,7 +4,8 @@ const groupMessageSchema = new mongoose.Schema(
   {
     group_id: { type: mongoose.Schema.Types.ObjectId, ref: "Group", required: true, index: true },
     sender_email: { type: String, required: true, index: true },
-    content: { type: String, required: true },
+    content: { type: String, required: false },
+    image_url: { type: String, default: null },
     deleted: { type: Boolean, default: false },
   },
   { timestamps: true }

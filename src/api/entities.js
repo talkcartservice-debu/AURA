@@ -52,7 +52,7 @@ export const groupService = {
   join: (id) => api.post(`/groups/${id}/join`).then((r) => r.data),
   leave: (id) => api.post(`/groups/${id}/leave`).then((r) => r.data),
   getMessages: (id) => api.get(`/groups/${id}/messages`).then((r) => r.data),
-  sendMessage: (id, content) => api.post(`/groups/${id}/messages`, { content }).then((r) => r.data),
+  sendMessage: (id, data) => api.post(`/groups/${id}/messages`, data).then((r) => r.data),
 };
 
 // Events

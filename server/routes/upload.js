@@ -5,16 +5,36 @@ import { upload } from "../config/cloudinary.js";
 const router = Router();
 
 // Upload a single image
-router.post("/", auth, upload.single("file"), (req, res) => {
-  if (!req.file) return res.status(400).json({ error: "No file uploaded" });
-  res.json({ url: req.file.path });
+router.post("/", auth, (req, res, next) => {
+  upload.single("file")(req, res, (err) => {
+    if (err) {
+      console.error("Multer/Cloudinary Upload Error:", err);
+      return res.status(500).json({ 
+        error: "Failed to upload image to Cloudinary", 
+        details: err.message,
+        suggestion: "Please check if your CLOUDINARY_CLOUD_NAME, CLOUDINARY_API_KEY, and CLOUDINARY_API_SECRET are correctly set in the .env file."
+      });
+    }
+    if (!req.file) return res.status(400).json({ error: "No file uploaded" });
+    res.json({ url: req.file.path });
+  });
 });
 
 // Upload multiple images (up to 6)
-router.post("/multiple", auth, upload.array("files", 6), (req, res) => {
-  if (!req.files?.length) return res.status(400).json({ error: "No files uploaded" });
-  const urls = req.files.map((f) => f.path);
-  res.json({ urls });
+router.post("/multiple", auth, (req, res, next) => {
+  upload.array("files", 6)(req, res, (err) => {
+    if (err) {
+      console.error("Multer/Cloudinary Multiple Upload Error:", err);
+      return res.status(500).json({ 
+        error: "Failed to upload images to Cloudinary", 
+        details: err.message,
+        suggestion: "Please check your Cloudinary configuration in the .env file."
+      });
+    }
+    if (!req.files?.length) return res.status(400).json({ error: "No files uploaded" });
+    const urls = req.files.map((f) => f.path);
+    res.json({ urls });
+  });
 });
 
 export default router;

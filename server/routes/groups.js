@@ -90,7 +90,12 @@ router.get("/:id/messages", auth, async (req, res) => {
 
 router.post("/:id/messages", auth, async (req, res) => {
   try {
-    const { content } = req.body;
+    const { content, image_url } = req.body;
+    
+    if (!content && !image_url) {
+      return res.status(400).json({ error: "Content or image_url is required" });
+    }
+
     const group = await Group.findById(req.params.id);
     if (!group) return res.status(404).json({ error: "Group not found" });
 
@@ -102,6 +107,7 @@ router.post("/:id/messages", auth, async (req, res) => {
       group_id: group._id,
       sender_email: req.user.email,
       content,
+      image_url,
     });
 
     // Notify all members except sender
