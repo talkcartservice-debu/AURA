@@ -8,6 +8,15 @@ const router = Router();
 // In-memory store for challenges (use Redis in production)
 const challenges = new Map();
 
+// Helper to get RP ID
+const getRpId = (req) => {
+  if (process.env.WEBAUTHN_RP_ID) return process.env.WEBAUTHN_RP_ID;
+  const hostname = req.hostname;
+  // If it's an IP address, WebAuthn might have issues with rp.id, 
+  // but for localhost it's fine.
+  return hostname === "127.0.0.1" ? "localhost" : hostname;
+};
+
 // Generate WebAuthn challenge
 const generateChallenge = () => {
   return crypto.randomBytes(32);
@@ -44,7 +53,7 @@ router.post("/register", async (req, res) => {
     const publicKey = {
       rp: {
         name: "AURA Dating",
-        id: process.env.WEBAUTHN_RP_ID || "localhost",
+        id: getRpId(req),
       },
       user: {
         id: Buffer.from(user_id).toString("base64"),
@@ -173,7 +182,7 @@ router.post("/authenticate", async (req, res) => {
       timeout: 60000,
       userVerification: "required",
       allowCredentials,
-      rpId: process.env.WEBAUTHN_RP_ID || "localhost",
+      rpId: getRpId(req),
     };
 
     res.json({ 
