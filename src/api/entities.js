@@ -39,6 +39,7 @@ export const messageService = {
   markRead: (matchId) => api.patch(`/messages/${matchId}/read`).then((r) => r.data),
   delete: (messageId) => api.delete(`/messages/${messageId}`).then((r) => r.data),
   edit: (messageId, content) => api.put(`/messages/${messageId}`, { content }).then((r) => r.data),
+  react: (messageId, emoji) => api.post(`/messages/${messageId}/react`, { emoji }).then((r) => r.data),
   getUnreadCount: (matchId) => api.get(`/messages/${matchId}/unread-count`).then((r) => r.data),
   getLastMessages: () => api.get("/messages/matches/last-messages").then((r) => r.data),
 };
@@ -181,8 +182,8 @@ export const relationshipCoachService = {
     api.post("/coach/interactions/rate", { interaction_id, rating }).then((r) => r.data),
   
   // Chat with AI Coach
-  chatWithCoach: (message) =>
-    api.post("/coach/chat", { message }).then((r) => r.data),
+  chatWithCoach: (data) =>
+    api.post("/coach/chat", data).then((r) => r.data),
   getChatHistory: (limit = 20) =>
     api.get("/coach/chat/history", { params: { limit } }).then((r) => r.data),
   clearChatHistory: () =>

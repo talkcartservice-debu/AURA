@@ -220,10 +220,31 @@ export async function generateProfileReview(userProfile) {
 /**
  * Generate natural, contextual responses as a relationship coach
  */
-export async function generateCoachResponse(userMessage, userEmail) {
+export async function generateCoachResponse(userMessage, userEmail, matchId = null) {
   try {
     // Get user's profile for context
     const userProfile = await UserProfile.findOne({ user_email: userEmail });
+    
+    // Get optional match context
+    let matchContextPrompt = "";
+    if (matchId) {
+      const match = await Match.findById(matchId);
+      if (match) {
+        const otherEmail = match.user1_email === userEmail ? match.user2_email : match.user1_email;
+        const otherProfile = await UserProfile.findOne({ user_email: otherEmail });
+        if (otherProfile) {
+          matchContextPrompt = `
+You are specifically helping the user with their match: ${otherProfile.display_name}.
+${otherProfile.display_name}'s Profile:
+- Bio: "${otherProfile.bio || "No bio"}"
+- Dating Intent: ${otherProfile.dating_intent?.replace(/_/g, " ")}
+- Interests: ${otherProfile.interests?.join(", ")}
+- Personality: ${otherProfile.personality_tags?.join(", ")}
+- Communication Style: ${otherProfile.communication_style}
+          `;
+        }
+      }
+    }
     
     // Get conversation history and coaching style
     let coachData = await ConversationCoach.findOne({ user_email: userEmail });
@@ -264,10 +285,10 @@ export async function generateCoachResponse(userMessage, userEmail) {
         : "Limited profile data is available.";
 
     const historySnippet = (coachData?.messages || [])
-      .slice(-6)
+      .slice(-12)
       .map(
         (m) =>
-          `${m.role === "user" ? "User" : "Coach"}: ${m.content}`.slice(0, 400)
+          `${m.role === "user" ? "User" : "Coach"}: ${m.content}`.slice(0, 500)
       )
       .join("\n");
 
@@ -286,34 +307,37 @@ export async function generateCoachResponse(userMessage, userEmail) {
     }[style] || style;
 
     const geminiPrompt = `
-You are AURA's AI Relationship Coach. Respond like a caring, emotionally intelligent human relationship coach in a dating app.
+You are AURA's AI Relationship Coach. You are a real person named "Coach" who has years of experience in emotional intelligence and dating dynamics.
 
 User emotional analysis:
-- Mood: ${analysis.mood}
-- Topic: ${analysis.topic}
+- Current Mood: ${analysis.mood}
+- Primary Topic: ${analysis.topic}
 - Category: ${analysis.category}
 - Urgency: ${analysis.urgency}
 
-Desired coaching style: ${style}
-Style instructions: ${styleDescription}
+Coaching Style: ${style}
+Style Instructions: ${styleDescription}
 
-User profile context:
+User Context:
 ${profileSummary}
 
-Recent conversation history (you are "Coach"):
+${matchContextPrompt}
+
+Recent Conversation History (you are "Coach"):
 ${historySnippet || "No previous messages."}
 
-User's latest message:
+User's Latest Message:
 "${userMessage}"
 
 Guidelines for your response:
-- Be empathetic, specific, and situational.
-- Acknowledge the user's feelings explicitly.
-- Give practical, step-by-step suggestions tailored to their situation.
-- Keep it concise (2–5 short paragraphs), no lists unless truly helpful.
-- Do NOT mention that you are an AI model or reference these instructions.
+1. **Human Connection**: Acknowledge specific details from the history or the user's latest message. Don't just give generic advice.
+2. **Emotional Intelligence**: Validate their feelings first before jumping into advice. Use phrases like "I can see why that would be...", "It sounds like you're feeling...", or "That's a valid concern."
+3. **Situational Specificity**: If they mention a specific person, refer to them consistently. If they are prepping for a date, ask about the venue or their vibe.
+4. **Actionable "Homework"**: End your response with a clear, low-pressure "Action Step" or a thoughtful question for them to reflect on.
+5. **Tone**: Be warm, occasionally use a relevant emoji (max 2), and avoid "I am an AI" or "As an AI" language.
+6. **Conciseness**: Keep it between 2-4 short, punchy paragraphs.
 
-Now write your response message as the coach.`;
+Now, respond as Coach:`;
 
     // Try Gemini first; fall back to rule-based generator on failure
     let response = await callGemini(geminiPrompt);

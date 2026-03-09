@@ -1,21 +1,23 @@
 import { useState, useEffect, useRef } from "react";
 import { useParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
-import { messageService, matchService, profileService, callService } from "@/api/entities";
+import { messageService, matchService, profileService, callService, uploadService } from "@/api/entities";
 import { useAuth } from "@/lib/AuthContext";
 import ProfileAvatar from "@/components/ProfileAvatar";
 import OnlineStatusBadge from "@/components/ui/OnlineStatusBadge";
 import EmptyState from "@/components/ui/EmptyState";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Send, Loader2, ArrowLeft, Check, CheckCheck, MoreVertical, ShieldAlert, UserMinus, MessageCircleOff, Search } from "lucide-react";
+import { Send, Loader2, ArrowLeft, Check, CheckCheck, MoreVertical, ShieldAlert, UserMinus, MessageCircleOff, Search, Smile, Image as ImageIcon, X } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import EmojiPicker from "emoji-picker-react";
 import { 
   DropdownMenu, 
   DropdownMenuContent, 
   DropdownMenuItem, 
   DropdownMenuTrigger 
 } from "@/components/ui/dropdown-menu";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import {
   Dialog,
   DialogContent,
@@ -52,6 +54,12 @@ export default function Chat() {
   const [reportDetails, setReportDetails] = useState("");
   const [isReporting, setIsReporting] = useState(false);
   const [isUnmatching, setIsUnmatching] = useState(false);
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+  const [selectedImage, setSelectedImageFile] = useState(null);
+  const [imagePreview, setImagePreview] = useState(null);
+  const [uploadingImage, setUploadingImage] = useState(false);
+  const imageInputRef = useRef(null);
+  const commonReactions = ["❤️", "😂", "😮", "😢", "🔥", "👍"];
 
   const { data: matches } = useQuery({ queryKey: ["mutualMatches"], queryFn: matchService.getMutual });
   const { data: missedCalls } = useQuery({
@@ -164,11 +172,19 @@ export default function Chat() {
     }
     on("message_received", handleMessageReceived);
 
+    function handleMessageReaction(payload) {
+      if (payload?.match_id === matchId) {
+        refetch();
+      }
+    }
+    on("message_reaction", handleMessageReaction);
+
     return () => {
       off("typing");
       off("stop_typing");
       off("messages_read");
       off("message_received");
+      off("message_reaction");
       if (typingTimeoutRef.current) {
         clearTimeout(typingTimeoutRef.current);
         typingTimeoutRef.current = null;
@@ -294,12 +310,47 @@ export default function Chat() {
     );
   }
 
+  const handleImageSelect = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      if (file.size > 5 * 1024 * 1024) {
+        toast.error("Image too large (max 5MB)");
+        return;
+      }
+      setSelectedImageFile(file);
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setImagePreview(reader.result);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const removeSelectedImage = () => {
+    setSelectedImageFile(null);
+    setImagePreview(null);
+    if (imageInputRef.current) imageInputRef.current.value = "";
+  };
+
   async function handleSend(e) {
     e.preventDefault();
-    if (!msg.trim()) return;
+    if (!msg.trim() && !selectedImage) return;
     setSending(true);
     try {
       const content = msg.trim();
+      let imageUrl = null;
+
+      if (selectedImage) {
+        setUploadingImage(true);
+        try {
+          imageUrl = await uploadService.single(selectedImage);
+        } catch (uploadErr) {
+          toast.error("Failed to upload image");
+          return;
+        } finally {
+          setUploadingImage(false);
+        }
+      }
 
       if (editingMessage) {
         await messageService.edit(editingMessage._id, content);
@@ -314,10 +365,12 @@ export default function Chat() {
         await messageService.send({
           match_id: matchId,
           content: finalContent,
+          image_url: imageUrl,
           is_disappearing: false, // Can be toggled in future
         });
       }
       setMsg("");
+      removeSelectedImage();
       setReplyTo(null);
       setSelectedMessage(null);
       await refetch();
@@ -370,6 +423,19 @@ export default function Chat() {
       toast.error(err.response?.data?.error || "Failed to forward message");
     }
   }
+
+  async function handleReact(messageId, emoji) {
+    try {
+      await messageService.react(messageId, emoji);
+      await refetch();
+    } catch (err) {
+      toast.error(err.response?.data?.error || "Failed to react");
+    }
+  }
+
+  const onEmojiClick = (emojiData) => {
+    setMsg((prev) => prev + emojiData.emoji);
+  };
 
   async function handleUnmatch() {
     if (!matchId) return;
@@ -552,7 +618,20 @@ export default function Chat() {
                     : "bg-gray-100 text-gray-800"
                 } ${isSelected ? "ring-2 ring-rose-300" : ""}`}
               >
-                <p className="whitespace-pre-wrap">{m.content}</p>
+                {m.image_url && (
+                  <div className="mb-2 rounded-xl overflow-hidden">
+                    <img 
+                      src={m.image_url} 
+                      alt="Message" 
+                      className="max-w-full h-auto object-cover cursor-zoom-in"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        window.open(m.image_url, "_blank");
+                      }}
+                    />
+                  </div>
+                )}
+                {m.content && <p className="whitespace-pre-wrap">{m.content}</p>}
                 <div className="mt-1 flex items-center justify-between text-[10px] opacity-70">
                   <span>
                     {new Date(m.createdAt).toLocaleTimeString([], {
@@ -575,6 +654,29 @@ export default function Chat() {
                   )}
                 </div>
               </div>
+              {/* Reactions display */}
+              {m.reactions && m.reactions.length > 0 && (
+                <div className={`flex flex-wrap gap-1 mt-1 ${isOwn ? "justify-end" : "justify-start"}`}>
+                  {Object.entries(
+                    m.reactions.reduce((acc, r) => {
+                      acc[r.emoji] = (acc[r.emoji] || 0) + 1;
+                      return acc;
+                    }, {})
+                  ).map(([emoji, count]) => (
+                    <button
+                      key={emoji}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleReact(m._id, emoji);
+                      }}
+                      className="px-1.5 py-0.5 bg-white border border-gray-100 rounded-full text-[10px] shadow-sm flex items-center gap-1 hover:border-rose-200 transition-colors"
+                    >
+                      <span>{emoji}</span>
+                      {count > 1 && <span className="font-bold text-gray-500">{count}</span>}
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
           );
         })}
@@ -593,6 +695,33 @@ export default function Chat() {
             Selected: {selectedMessage.content.slice(0, 60)}
           </span>
           <div className="ml-auto flex flex-wrap gap-2">
+            <div className="flex items-center gap-1 mr-2 border-r pr-2">
+              {commonReactions.map((emoji) => (
+                <button
+                  key={emoji}
+                  onClick={() => handleReact(selectedMessage._id, emoji)}
+                  className="hover:scale-125 transition-transform p-1"
+                >
+                  {emoji}
+                </button>
+              ))}
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button variant="ghost" size="icon" className="h-6 w-6 rounded-full">
+                    <Smile className="h-4 w-4" />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0 border-none shadow-xl" side="top">
+                  <EmojiPicker 
+                    onEmojiClick={(emojiData) => {
+                      handleReact(selectedMessage._id, emojiData.emoji);
+                    }}
+                    width={300}
+                    height={400}
+                  />
+                </PopoverContent>
+              </Popover>
+            </div>
             <Button
               type="button"
               variant="outline"
@@ -729,10 +858,77 @@ export default function Chat() {
           </div>
         </div>
       )}
-      <form onSubmit={handleSend} className="p-4 border-t border-gray-100 flex gap-2">
-        <Input value={msg} onChange={(e) => setMsg(e.target.value)} placeholder="Type a message..." className="rounded-xl flex-1" />
-        <Button type="submit" disabled={sending || !msg.trim()} className="rounded-xl bg-gradient-to-r from-rose-500 to-purple-600 text-white px-4">
-          {sending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
+      {/* Image Preview */}
+      {imagePreview && (
+        <div className="px-4 py-2 border-t border-gray-100 bg-white">
+          <div className="relative inline-block">
+            <img 
+              src={imagePreview} 
+              alt="Preview" 
+              className="h-20 w-20 object-cover rounded-lg border border-gray-200" 
+            />
+            <button
+              onClick={removeSelectedImage}
+              className="absolute -top-2 -right-2 bg-rose-500 text-white rounded-full p-0.5 shadow-md hover:bg-rose-600 transition-colors"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+        </div>
+      )}
+      <form onSubmit={handleSend} className="p-4 border-t border-gray-100 flex items-center gap-2 relative">
+        <div className="flex items-center gap-1">
+          <Popover open={showEmojiPicker} onOpenChange={setShowEmojiPicker}>
+            <PopoverTrigger asChild>
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                className="rounded-xl shrink-0 h-9 w-9"
+              >
+                <Smile className="w-5 h-5 text-gray-500" />
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-auto p-0 border-none shadow-xl mb-2" align="start" side="top">
+              <EmojiPicker onEmojiClick={onEmojiClick} width={300} height={400} />
+            </PopoverContent>
+          </Popover>
+          
+          <input
+            type="file"
+            accept="image/*"
+            className="hidden"
+            ref={imageInputRef}
+            onChange={handleImageSelect}
+          />
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            className="rounded-xl shrink-0 h-9 w-9"
+            onClick={() => imageInputRef.current?.click()}
+            disabled={uploadingImage}
+          >
+            <ImageIcon className="w-5 h-5 text-gray-500" />
+          </Button>
+        </div>
+        
+        <Input 
+          value={msg} 
+          onChange={(e) => setMsg(e.target.value)} 
+          placeholder="Type a message..." 
+          className="rounded-xl flex-1 h-9" 
+        />
+        <Button 
+          type="submit" 
+          disabled={sending || uploadingImage || (!msg.trim() && !selectedImage)} 
+          className="rounded-xl bg-gradient-to-r from-rose-500 to-purple-600 text-white px-4 h-9 min-w-[3rem]"
+        >
+          {sending || uploadingImage ? (
+            <Loader2 className="w-4 h-4 animate-spin" />
+          ) : (
+            <Send className="w-4 h-4" />
+          )}
         </Button>
       </form>
     </div>

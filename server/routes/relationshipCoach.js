@@ -304,13 +304,13 @@ router.post("/interactions/rate", auth, async (req, res) => {
 // Chat with AI Relationship Coach
 router.post("/chat", auth, async (req, res) => {
   try {
-    const { message } = req.body;
+    const { message, match_id } = req.body;
     
     if (!message || !message.trim()) {
       return res.status(400).json({ error: "Message is required" });
     }
     
-    const result = await generateCoachResponse(message.trim(), req.user.email);
+    const result = await generateCoachResponse(message.trim(), req.user.email, match_id);
     
     res.json({
       response: result.response,

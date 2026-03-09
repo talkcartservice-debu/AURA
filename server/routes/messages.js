@@ -58,10 +58,10 @@ router.get("/:matchId", auth, async (req, res) => {
 // Send a message
 router.post("/", auth, async (req, res) => {
   try {
-    const { match_id, content, is_disappearing, duration_hours } = req.body;
+    const { match_id, content, image_url, is_disappearing, duration_hours } = req.body;
     
-    if (!match_id || !content) {
-      return res.status(400).json({ error: "match_id and content are required" });
+    if (!match_id || (!content && !image_url)) {
+      return res.status(400).json({ error: "match_id and either content or image_url are required" });
     }
 
     // Get match to find receiver
@@ -82,7 +82,8 @@ router.post("/", auth, async (req, res) => {
       match_id,
       sender_email: req.user.email,
       receiver_email,
-      content,
+      content: content || "",
+      image_url,
     };
 
     // Add disappearing message settings if requested
@@ -110,6 +111,7 @@ router.post("/", auth, async (req, res) => {
         match_id,
         from_email: req.user.email,
         content: message.content,
+        image_url: message.image_url,
         message_id: message._id,
         created_at: message.createdAt,
       });
@@ -124,7 +126,7 @@ router.post("/", auth, async (req, res) => {
 
       await sendNotificationToUser(receiver_email, {
         title: `Message from ${senderName}`,
-        body: content,
+        body: content || "Sent an image",
         data: { type: "MESSAGE", match_id: match_id.toString() }
       });
     } catch (pushErr) {
@@ -226,6 +228,62 @@ router.put("/:messageId", auth, async (req, res) => {
     await message.save();
 
     res.json({ message: "Message updated", messageId: message._id });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// React to a message
+router.post("/:messageId/react", auth, async (req, res) => {
+  try {
+    const { emoji } = req.body;
+    const { messageId } = req.params;
+
+    if (!emoji) {
+      return res.status(400).json({ error: "Emoji is required" });
+    }
+
+    const message = await Message.findById(messageId);
+    if (!message) {
+      return res.status(404).json({ error: "Message not found" });
+    }
+
+    // Check if user already reacted with this emoji
+    const existingReactionIndex = message.reactions.findIndex(
+      (r) => r.user_email === req.user.email && r.emoji === emoji
+    );
+
+    if (existingReactionIndex > -1) {
+      // Toggle off: remove reaction
+      message.reactions.splice(existingReactionIndex, 1);
+    } else {
+      // Toggle on: add reaction (could also limit reactions per user here if desired)
+      message.reactions.push({
+        user_email: req.user.email,
+        emoji,
+      });
+    }
+
+    await message.save();
+
+    // Notify the other user via Socket.IO
+    const otherEmail = message.sender_email === req.user.email 
+      ? message.receiver_email 
+      : message.sender_email;
+
+    try {
+      emitToUser(otherEmail, "message_reaction", {
+        message_id: message._id,
+        match_id: message.match_id,
+        user_email: req.user.email,
+        emoji,
+        reactions: message.reactions
+      });
+    } catch (socketErr) {
+      console.error("Socket emit message_reaction error:", socketErr);
+    }
+
+    res.json({ success: true, reactions: message.reactions });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

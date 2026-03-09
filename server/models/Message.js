@@ -5,7 +5,8 @@ const messageSchema = new mongoose.Schema(
     match_id: { type: mongoose.Schema.Types.ObjectId, ref: "Match", required: true, index: true },
     sender_email: { type: String, required: true, index: true },
     receiver_email: { type: String, required: true, index: true },
-    content: { type: String, required: true },
+    content: { type: String, required: false },
+    image_url: { type: String, required: false },
     is_read: { type: Boolean, default: false },
     // Disappearing messages support
     is_disappearing: { type: Boolean, default: false },
@@ -13,6 +14,12 @@ const messageSchema = new mongoose.Schema(
     // Message metadata
     edited: { type: Boolean, default: false },
     deleted: { type: Boolean, default: false },
+    reactions: [
+      {
+        user_email: { type: String, required: true },
+        emoji: { type: String, required: true },
+      }
+    ],
   },
   { timestamps: true }
 );
