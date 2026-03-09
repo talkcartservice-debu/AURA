@@ -24,7 +24,7 @@ const checkAiCoachEnabled = async (req, res, next) => {
   try {
     const coachSetting = await SystemSetting.findOne({ key: 'enable_ai_coach' });
     if (coachSetting && coachSetting.value === false) {
-      return res.status(403).json({ error: "The AI Relationship Coach is currently disabled by the administrator." });
+      return res.status(404).json({ error: "The AI Relationship Coach is currently disabled by the administrator." });
     }
     next();
   } catch (err) {

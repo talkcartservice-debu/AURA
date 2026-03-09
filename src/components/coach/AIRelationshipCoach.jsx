@@ -11,10 +11,13 @@ import ChatWithCoach from "./ChatWithCoach";
 export default function AIRelationshipCoach() {
   const [activeTab, setActiveTab] = useState("dashboard");
 
-  const { data: coachData, isLoading } = useQuery({
+  const { data: coachData, isLoading, isError } = useQuery({
     queryKey: ["coachDashboard"],
     queryFn: relationshipCoachService.getDashboard,
+    retry: false,
   });
+
+  if (isError) return null;
 
   if (isLoading) {
     return (

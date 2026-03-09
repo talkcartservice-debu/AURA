@@ -18,16 +18,30 @@ api.interceptors.request.use((config) => {
 api.interceptors.response.use(
   (res) => res,
   (err) => {
-    if (err.response?.status === 401 || err.response?.status === 403) {
-      const errorMsg = err.response?.data?.error || "Session expired or access denied";
-      toast.error(errorMsg);
+    const status = err.response?.status;
+    const errorMsg = err.response?.data?.error || "";
+    
+    // Only logout on 401 (Unauthorized) or 403 if it's a global ban/suspension
+    const isAuthError = status === 401;
+    const isBanError = status === 403 && (
+      errorMsg.toLowerCase().includes("banned") || 
+      errorMsg.toLowerCase().includes("suspended") ||
+      errorMsg.toLowerCase().includes("session expired") ||
+      errorMsg.toLowerCase().includes("access denied")
+    );
+
+    if (isAuthError || isBanError) {
+      toast.error(errorMsg || "Session expired or access denied");
       
       localStorage.removeItem("aura_token");
       localStorage.removeItem("aura_email");
       if (window.location.pathname !== "/") {
         window.location.href = "/";
       }
-    } else if (err.response?.status === 500) {
+    } else if (status === 403) {
+      // For other 403s (like feature disabled), just show the error without logging out
+      toast.error(errorMsg || "Access denied");
+    } else if (status === 500) {
       toast.error("A server error occurred. Please try again later.");
     } else if (err.code === "ECONNABORTED" || !err.response) {
       toast.error("Network error. Please check your connection.");
