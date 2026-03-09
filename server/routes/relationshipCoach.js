@@ -4,6 +4,7 @@ import UserProfile from "../models/UserProfile.js";
 import Match from "../models/Match.js";
 import RelationshipCoach from "../models/RelationshipCoach.js";
 import ConversationCoach from "../models/ConversationCoach.js";
+import SystemSetting from "../models/SystemSetting.js";
 import {
   generateCoachResponse,
   getConversationHistory,
@@ -17,6 +18,21 @@ import {
 } from "../utils/conversationCoachService.js";
 
 const router = Router();
+
+// Middleware to check if AI Coach is enabled
+const checkAiCoachEnabled = async (req, res, next) => {
+  try {
+    const coachSetting = await SystemSetting.findOne({ key: 'enable_ai_coach' });
+    if (coachSetting && coachSetting.value === false) {
+      return res.status(403).json({ error: "The AI Relationship Coach is currently disabled by the administrator." });
+    }
+    next();
+  } catch (err) {
+    next(err);
+  }
+};
+
+router.use(checkAiCoachEnabled);
 
 // Get conversation starters for a specific match
 router.get("/conversation-starters/:matchId", auth, async (req, res) => {

@@ -1,3 +1,4 @@
+import jwt from 'jsonwebtoken';
 import SystemSetting from '../models/SystemSetting.js';
 
 const maintenance = async (req, res, next) => {
@@ -10,8 +11,19 @@ const maintenance = async (req, res, next) => {
     const setting = await SystemSetting.findOne({ key: 'maintenance_mode' });
     
     if (setting && setting.value === true) {
-      // Allow admins to still access the app if they are logged in
-      const role = req.user?.role;
+      // Try to get role from token if present to allow admin access during maintenance
+      let role = null;
+      const authHeader = req.headers.authorization;
+      if (authHeader && authHeader.startsWith('Bearer ')) {
+        try {
+          const token = authHeader.split(' ')[1];
+          const decoded = jwt.verify(token, process.env.JWT_SECRET);
+          role = decoded.role;
+        } catch (err) {
+          // Token invalid, ignore
+        }
+      }
+
       if (['super_admin', 'admin', 'moderator', 'support'].includes(role)) {
         return next();
       }

@@ -4,6 +4,8 @@ import Like from "../models/Like.js";
 import Match from "../models/Match.js";
 import DailyMatch from "../models/DailyMatch.js";
 import Subscription from "../models/Subscription.js";
+import UserProfile from "../models/UserProfile.js";
+import SystemSetting from "../models/SystemSetting.js";
 import { emitToUser } from "../signaling.js";
 import { sendNotificationToUser } from "../utils/notificationService.js";
 
@@ -11,6 +13,14 @@ const router = Router();
 
 router.post("/", auth, async (req, res) => {
   try {
+    const forceVerification = await SystemSetting.findOne({ key: 'force_photo_verification' });
+    if (forceVerification && forceVerification.value === true) {
+      const profile = await UserProfile.findOne({ user_email: req.user.email });
+      if (!profile || !profile.is_verified) {
+        return res.status(403).json({ error: "Photo verification is required to like other users." });
+      }
+    }
+
     const { to_email, daily_match_id, is_super_like } = req.body;
 
     // Check if this is a Super Like and validate subscription

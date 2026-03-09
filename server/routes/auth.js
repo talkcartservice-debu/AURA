@@ -3,12 +3,18 @@ import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import User from "../models/User.js";
 import UserProfile from "../models/UserProfile.js";
+import SystemSetting from "../models/SystemSetting.js";
 import auth from "../middleware/auth.js";
 
 const router = Router();
 
 router.post("/signup", async (req, res) => {
   try {
+    const registrationSetting = await SystemSetting.findOne({ key: 'allow_registration' });
+    if (registrationSetting && registrationSetting.value === false) {
+      return res.status(403).json({ error: "Registration is currently disabled by the administrator." });
+    }
+
     const { email, password, username, display_name } = req.body;
     if (!email || !password) {
       return res.status(400).json({ error: "Email and password required" });

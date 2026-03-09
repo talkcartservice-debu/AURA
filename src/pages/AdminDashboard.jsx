@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { adminService } from "@/api/entities";
+import { toast } from "sonner";
 import { 
   Users, 
   Shield, 
@@ -290,11 +291,17 @@ const AdminDashboard = () => {
   };
 
   const handleUpdateSetting = async (key, value) => {
+    if (user.role !== 'super_admin') {
+      toast.error("Only Super Admin can change settings");
+      return;
+    }
     try {
       await adminService.updateSetting(key, value);
       fetchData();
+      toast.success("Setting updated");
     } catch (err) {
       console.error("Failed to update setting", err);
+      toast.error(err.response?.data?.error || "Failed to update setting");
     }
   };
 
@@ -1214,12 +1221,14 @@ const AdminDashboard = () => {
                     description="Allow new users to create accounts" 
                     checked={settings.find(s => s.key === 'allow_registration')?.value !== false}
                     onCheckedChange={(v) => handleUpdateSetting('allow_registration', v)}
+                    disabled={user.role !== 'super_admin'}
                   />
                   <SettingRow 
                     label="Maintenance Mode" 
                     description="Put the platform in maintenance mode (admins only)" 
                     checked={settings.find(s => s.key === 'maintenance_mode')?.value === true}
                     onCheckedChange={(v) => handleUpdateSetting('maintenance_mode', v)}
+                    disabled={user.role !== 'super_admin'}
                   />
                 </CardContent>
               </Card>
@@ -1234,12 +1243,14 @@ const AdminDashboard = () => {
                     description="Enable AI-powered dating advice and insights" 
                     checked={settings.find(s => s.key === 'enable_ai_coach')?.value !== false}
                     onCheckedChange={(v) => handleUpdateSetting('enable_ai_coach', v)}
+                    disabled={user.role !== 'super_admin'}
                   />
                   <SettingRow 
                     label="Force Photo Verification" 
                     description="Require all users to verify their photos before matching" 
                     checked={settings.find(s => s.key === 'force_photo_verification')?.value === true}
                     onCheckedChange={(v) => handleUpdateSetting('force_photo_verification', v)}
+                    disabled={user.role !== 'super_admin'}
                   />
                 </CardContent>
               </Card>
@@ -1599,13 +1610,18 @@ const AlertCard = ({ type, count, title, description, onClick }) => (
   </div>
 );
 
-const SettingRow = ({ label, description, checked, onCheckedChange }) => (
-  <div className="flex items-center justify-between">
+const SettingRow = ({ label, description, checked, onCheckedChange, disabled }) => (
+  <div className={`flex items-center justify-between ${disabled ? 'opacity-50' : ''}`}>
     <div className="space-y-0.5">
       <div className="text-sm font-bold text-gray-900">{label}</div>
       <div className="text-xs text-gray-500">{description}</div>
     </div>
-    <Switch checked={checked} onCheckedChange={onCheckedChange} />
+    <Switch 
+      checked={checked} 
+      onCheckedChange={onCheckedChange} 
+      disabled={disabled}
+      className="data-[state=checked]:bg-rose-500"
+    />
   </div>
 );
 
