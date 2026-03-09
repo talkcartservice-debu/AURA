@@ -51,6 +51,8 @@ export const groupService = {
   create: (data) => api.post("/groups", data).then((r) => r.data),
   join: (id) => api.post(`/groups/${id}/join`).then((r) => r.data),
   leave: (id) => api.post(`/groups/${id}/leave`).then((r) => r.data),
+  approveRequest: (id, user_email) => api.post(`/groups/${id}/requests/approve`, { user_email }).then((r) => r.data),
+  rejectRequest: (id, user_email) => api.post(`/groups/${id}/requests/reject`, { user_email }).then((r) => r.data),
   getMessages: (id) => api.get(`/groups/${id}/messages`).then((r) => r.data),
   sendMessage: (id, data) => api.post(`/groups/${id}/messages`, data).then((r) => r.data),
 };
@@ -61,12 +63,25 @@ export const eventService = {
   create: (data) => api.post("/events", data).then((r) => r.data),
   rsvp: (id) => api.post(`/events/${id}/rsvp`).then((r) => r.data),
   getAttendees: (id) => api.get(`/events/${id}/attendees`).then((r) => r.data),
+  getMessages: (id) => api.get(`/events/${id}/messages`).then((r) => r.data),
+  sendMessage: (id, data) => api.post(`/events/${id}/messages`, data).then((r) => r.data),
+  deleteMessage: (eventId, messageId) => api.delete(`/events/${eventId}/messages/${messageId}`).then((r) => r.data),
+  editMessage: (eventId, messageId, content) => api.put(`/events/${eventId}/messages/${messageId}`, { content }).then((r) => r.data),
 };
 
 // Verification
 export const verificationService = {
   get: () => api.get("/verification").then((r) => r.data),
   submit: (selfie_url) => api.post("/verification", { selfie_url }).then((r) => r.data),
+  
+  // Deep Verification
+  initDeep: (type = "basic") => api.post("/verification/deep/init", { verification_type: type }).then((r) => r.data),
+  submitID: (data) => api.post("/verification/deep/id-document", data).then((r) => r.data),
+  sendPhoneCode: (phone_number, country_code) => api.post("/verification/deep/phone/send-code", { phone_number, country_code }).then((r) => r.data),
+  verifyPhoneCode: (otp) => api.post("/verification/deep/phone/verify-code", { otp }).then((r) => r.data),
+  submitSocials: (social_accounts) => api.post("/verification/deep/social-accounts", { social_accounts }).then((r) => r.data),
+  submitVideo: (data) => api.post("/verification/deep/video", data).then((r) => r.data),
+  getStatus: (email) => api.get("/verification/deep/status", { params: { email } }).then((r) => r.data),
 };
 
 // Subscriptions

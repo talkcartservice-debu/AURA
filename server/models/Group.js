@@ -10,6 +10,7 @@ const groupSchema = new mongoose.Schema(
     location: { type: String, default: "" },
     creator_email: { type: String, required: true },
     member_emails: [{ type: String }],
+    pending_member_emails: [{ type: String }],
     max_members: { type: Number },
     is_public: { type: Boolean, default: true },
   },

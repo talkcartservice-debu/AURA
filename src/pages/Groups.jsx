@@ -1,96 +1,109 @@
-﻿import { useState } from "react";
+import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { groupService, eventService, dateEventService } from "@/api/entities";
+import { groupService } from "@/api/entities";
 import { useAuth } from "@/lib/AuthContext";
 import GroupCard from "@/components/groups/GroupCard";
 import CreateGroupModal from "@/components/groups/CreateGroupModal";
 import GroupChatModal from "@/components/groups/GroupChatModal";
+import JoinRequestsModal from "@/components/groups/JoinRequestsModal";
 import CreateEventModal from "@/components/events/CreateEventModal";
-import EventCard from "@/components/events/EventCard";
-import AttendeeListModal from "@/components/events/AttendeeListModal";
-import CommunityEventSuggestion from "@/components/events/CommunityEventSuggestion";
 import AIRelationshipCoach from "@/components/coach/AIRelationshipCoach";
 import { Button } from "@/components/ui/button";
-import { Plus, Loader2, Users, Calendar, Sparkles } from "lucide-react";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Plus, Loader2, Users, Calendar } from "lucide-react";
 import { toast } from "sonner";
 
 const CATEGORY_EMOJI = { outdoor: "🏕️", arts: "🎨", food: "🍕", sports: "⚽", books: "📚", music: "🎵", travel: "✈️", fitness: "💪", social: "🎉", other: "✨" };
 
 export default function Groups() {
+  const navigate = useNavigate();
   const { user } = useAuth();
   const qc = useQueryClient();
-  const [activeTab, setActiveTab] = useState("groups");
   const [showCreate, setShowCreate] = useState(false);
   const [showEvent, setShowEvent] = useState(null);
-  const [showSuggestModal, setShowSuggestModal] = useState(false);
   const [activeChatGroup, setActiveChatGroup] = useState(null);
-  const [activeEventAttendees, setActiveEventAttendees] = useState(null);
+  const [activeRequestsGroup, setActiveRequestsGroup] = useState(null);
   
-  const { data: groups, isLoading } = useQuery({ queryKey: ["groups"], queryFn: groupService.list });
-  const { data: events } = useQuery({ queryKey: ["events"], queryFn: () => eventService.list() });
-  
-  // AI Suggestions
-  const { data: suggestionsData, isLoading: loadingSuggestions } = useQuery({
-    queryKey: ["eventSuggestions"],
-    queryFn: dateEventService.getSuggestions,
-    enabled: activeTab === "suggestions",
-  });
-  
-  // Community Events
-  const { data: communityEvents, isLoading: loadingCommunity } = useQuery({
-    queryKey: ["communityEvents"],
-    queryFn: () => dateEventService.getCommunityEvents({}),
-    enabled: activeTab === "community",
+  const { data: groups, isLoading } = useQuery({ 
+    queryKey: ["groups"], 
+    queryFn: groupService.list 
   });
 
   async function handleCreateGroup(data) {
-    await groupService.create(data);
-    qc.invalidateQueries(["groups"]);
-    setShowCreate(false);
-    toast.success("Group created!");
-  }
-
-  async function handleJoin(group) {
-    await groupService.join(group._id);
-    qc.invalidateQueries(["groups"]);
-  }
-
-  async function handleLeave(group) {
-    await groupService.leave(group._id);
-    qc.invalidateQueries(["groups"]);
-  }
-
-  async function handleCreateEvent(data) {
-    await eventService.create(data);
-    qc.invalidateQueries(["events"]);
-    setShowEvent(null);
-    toast.success("Event created!");
-  }
-
-  async function handleRSVP(event) {
-    await eventService.rsvp(event._id);
-    qc.invalidateQueries(["events"]);
-  }
-
-  async function handleUpvote(event) {
     try {
-      await dateEventService.upvoteCommunityEvent(event._id || event.id);
-      toast.success("Event upvoted!");
-      qc.invalidateQueries(["communityEvents"]);
+      await groupService.create(data);
+      qc.invalidateQueries(["groups"]);
+      setShowCreate(false);
+      toast.success("Group created!");
     } catch (err) {
-      toast.error("Failed to upvote");
+      toast.error(err.response?.data?.error || "Failed to create group");
     }
   }
 
-  async function handleSuggestEvent(eventData) {
+  async function handleJoin(group) {
     try {
-      await dateEventService.suggestCommunityEvent(eventData);
-      toast.success("Event suggested! It will appear after approval.");
-      setShowSuggestModal(false);
-      qc.invalidateQueries(["communityEvents"]);
+      await groupService.join(group._id);
+      qc.invalidateQueries(["groups"]);
+      toast.success("Join request sent!");
     } catch (err) {
-      toast.error("Failed to suggest event");
+      toast.error(err.response?.data?.error || "Failed to send request");
+    }
+  }
+
+  async function handleLeave(group) {
+    try {
+      await groupService.leave(group._id);
+      qc.invalidateQueries(["groups"]);
+      toast.success("Left group");
+    } catch (err) {
+      toast.error("Failed to leave group");
+    }
+  }
+
+  async function handleApproveRequest(groupId, userEmail) {
+    try {
+      await groupService.approveRequest(groupId, userEmail);
+      qc.invalidateQueries(["groups"]);
+      
+      if (activeRequestsGroup?._id === groupId) {
+        setActiveRequestsGroup(prev => ({
+          ...prev,
+          pending_member_emails: prev.pending_member_emails.filter(e => e !== userEmail),
+          member_emails: [...prev.member_emails, userEmail]
+        }));
+      }
+      toast.success("Request approved");
+    } catch (err) {
+      toast.error("Failed to approve request");
+    }
+  }
+
+  async function handleRejectRequest(groupId, userEmail) {
+    try {
+      await groupService.rejectRequest(groupId, userEmail);
+      qc.invalidateQueries(["groups"]);
+
+      if (activeRequestsGroup?._id === groupId) {
+        setActiveRequestsGroup(prev => ({
+          ...prev,
+          pending_member_emails: prev.pending_member_emails.filter(e => e !== userEmail)
+        }));
+      }
+      toast.success("Request rejected");
+    } catch (err) {
+      toast.error("Failed to reject request");
+    }
+  }
+
+  async function handleCreateEvent(data) {
+    try {
+      // Assuming groupService.createEvent or eventService.create works with groupId
+      // For now we use eventService indirectly via create modal which handles it
+      qc.invalidateQueries(["events"]); // Invalidate global events
+      setShowEvent(null);
+      toast.success("Event created!");
+    } catch (err) {
+      toast.error("Failed to create event");
     }
   }
 
@@ -101,145 +114,57 @@ export default function Groups() {
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-2xl font-black text-gray-900 flex items-center gap-2">
-          <Users className="w-6 h-6 text-purple-500" /> Groups & Events
+          <Users className="w-6 h-6 text-purple-500" /> Groups
         </h1>
         <div className="flex gap-2">
-          {activeTab === "groups" && (
-            <>
-              <Button onClick={() => setShowCreate(true)} size="sm" variant="outline" className="rounded-xl border-purple-200 text-purple-600 hover:bg-purple-50">
-                <Plus className="w-4 h-4 mr-1" /> Group
-              </Button>
-              <Button onClick={() => setShowEvent('standalone')} size="sm" className="rounded-xl bg-gradient-to-r from-rose-500 to-purple-600 text-white">
-                <Plus className="w-4 h-4 mr-1" /> Event
-              </Button>
-            </>
-          )}
-          {activeTab === "suggestions" && (
-            <Button onClick={() => setShowSuggestModal(true)} size="sm" className="rounded-xl bg-gradient-to-r from-rose-500 to-purple-600 text-white">
-              <Plus className="w-4 h-4 mr-1" /> Suggest Spot
-            </Button>
-          )}
+          <Button onClick={() => navigate("/events")} size="sm" variant="outline" className="rounded-xl border-rose-200 text-rose-600 hover:bg-rose-50">
+            <Calendar className="w-4 h-4 mr-1" /> Explore Events
+          </Button>
+          <Button onClick={() => setShowCreate(true)} size="sm" className="rounded-xl bg-gradient-to-r from-purple-500 to-rose-600 text-white shadow-lg shadow-purple-100">
+            <Plus className="w-4 h-4 mr-1" /> Create Group
+          </Button>
         </div>
       </div>
 
-      {/* AI Relationship Coach Dashboard - Always visible */}
+      {/* AI Relationship Coach Dashboard */}
       <div className="mb-6">
         <AIRelationshipCoach />
       </div>
 
-      {/* Main Tabs */}
-      <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className="grid w-full grid-cols-3 mb-4">
-          <TabsTrigger value="groups" className="flex items-center gap-2">
-            <Users className="w-4 h-4" />
-            Groups
-          </TabsTrigger>
-          <TabsTrigger value="events" className="flex items-center gap-2">
-            <Calendar className="w-4 h-4" />
-            Group Events
-          </TabsTrigger>
-          <TabsTrigger value="suggestions" className="flex items-center gap-2">
-            <Sparkles className="w-4 h-4" />
-            AI Picks
-          </TabsTrigger>
-        </TabsList>
+      <div className="space-y-4">
+        <div className="flex items-center justify-between">
+          <h2 className="text-sm font-black text-gray-400 uppercase tracking-widest flex items-center gap-2">
+            <Users className="w-4 h-4" /> Available Groups
+          </h2>
+          <span className="text-xs font-bold text-gray-400 bg-gray-100 px-2 py-1 rounded-lg">
+            {groups?.length || 0} Total
+          </span>
+        </div>
 
-        {/* Groups Tab */}
-        <TabsContent value="groups">
-          <div className="space-y-3">
-            {(groups || []).map((g) => (
-              <GroupCard 
-                key={g._id} 
-                group={g} 
-                userEmail={user?.email} 
-                onJoin={handleJoin} 
-                onLeave={handleLeave} 
-                onCreateEvent={(groupId) => setShowEvent(groupId)} 
-                onOpenChat={(group) => setActiveChatGroup(group)}
-              />
-            ))}
-            {(!groups || groups.length === 0) && (
-              <div className="text-center py-12 bg-gray-50 rounded-2xl">
-                <Users className="w-12 h-12 text-gray-300 mx-auto mb-3" />
-                <p className="text-gray-500 text-sm">No groups yet. Create the first one!</p>
+        <div className="space-y-3">
+          {(groups || []).map((g) => (
+            <GroupCard 
+              key={g._id} 
+              group={g} 
+              userEmail={user?.email} 
+              onJoin={handleJoin} 
+              onLeave={handleLeave} 
+              onCreateEvent={(groupId) => setShowEvent(groupId)} 
+              onOpenChat={(group) => setActiveChatGroup(group)}
+              onManageRequests={(group) => setActiveRequestsGroup(group)}
+            />
+          ))}
+          {(!groups || groups.length === 0) && (
+            <div className="text-center py-20 bg-gray-50/50 rounded-[2rem] border-2 border-dashed border-gray-100">
+              <div className="w-16 h-16 bg-white rounded-2xl shadow-sm flex items-center justify-center mx-auto mb-4">
+                <Users className="w-8 h-8 text-gray-300" />
               </div>
-            )}
-          </div>
-        </TabsContent>
-
-        {/* Group Events Tab */}
-        <TabsContent value="events">
-          <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <h2 className="text-lg font-bold text-gray-900">
-                Upcoming Group Events
-              </h2>
-              <span className="text-xs text-gray-500">
-                {(events || []).length} events
-              </span>
+              <p className="text-gray-500 font-bold">No groups found</p>
+              <p className="text-xs text-gray-400 mt-1">Start a community by creating a group!</p>
             </div>
-            
-            {(events || []).length > 0 ? (
-              <div className="space-y-3">
-                {events.map((e) => (
-                  <EventCard 
-                    key={e._id} 
-                    event={e} 
-                    userEmail={user?.email} 
-                    onRSVP={handleRSVP} 
-                    showAIInsights={true}
-                    onShowAttendees={(event) => setActiveEventAttendees(event)}
-                  />
-                ))}
-              </div>
-            ) : (
-              <div className="text-center py-12 bg-gray-50 rounded-2xl">
-                <Calendar className="w-12 h-12 text-gray-300 mx-auto mb-3" />
-                <p className="text-gray-500 text-sm">No upcoming events. Create one!</p>
-              </div>
-            )}
-          </div>
-        </TabsContent>
-
-        {/* AI Suggestions Tab */}
-        <TabsContent value="suggestions">
-          <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <h2 className="text-lg font-bold text-gray-900">
-                Personalized Date Ideas
-              </h2>
-              <span className="text-xs text-gray-500">
-                {suggestionsData?.total || 0} suggestions
-              </span>
-            </div>
-
-            {loadingSuggestions ? (
-              <div className="flex items-center justify-center py-20">
-                <Loader2 className="w-8 h-8 animate-spin text-rose-500" />
-              </div>
-            ) : suggestionsData?.events?.length === 0 ? (
-              <div className="text-center py-12 bg-gray-50 rounded-2xl">
-                <Sparkles className="w-12 h-12 text-gray-300 mx-auto mb-3" />
-                <p className="text-gray-500 text-sm">
-                  Set your preferred date types in profile to get personalized suggestions
-                </p>
-              </div>
-            ) : (
-              <div className="grid gap-4">
-                {suggestionsData?.events?.map((event) => (
-                  <EventCard
-                    key={event.id}
-                    event={event}
-                    userEmail={user?.email}
-                    onRSVP={handleRSVP}
-                    showAIInsights={true}
-                  />
-                ))}
-              </div>
-            )}
-          </div>
-        </TabsContent>
-      </Tabs>
+          )}
+        </div>
+      </div>
 
       {/* Modals */}
       {showCreate && (
@@ -253,18 +178,10 @@ export default function Groups() {
       
       {showEvent && (
         <CreateEventModal 
-          groupId={showEvent === 'standalone' ? null : showEvent} 
+          groupId={showEvent} 
           userEmail={user?.email} 
           onClose={() => setShowEvent(null)} 
           onCreate={handleCreateEvent}
-          suggestAsCommunity={true}
-        />
-      )}
-      
-      {showSuggestModal && (
-        <CommunityEventSuggestion
-          onClose={() => setShowSuggestModal(false)}
-          onSuggest={handleSuggestEvent}
         />
       )}
 
@@ -276,10 +193,12 @@ export default function Groups() {
         />
       )}
 
-      {activeEventAttendees && (
-        <AttendeeListModal
-          event={activeEventAttendees}
-          onClose={() => setActiveEventAttendees(null)}
+      {activeRequestsGroup && (
+        <JoinRequestsModal
+          group={activeRequestsGroup}
+          onClose={() => setActiveRequestsGroup(null)}
+          onApprove={handleApproveRequest}
+          onReject={handleRejectRequest}
         />
       )}
     </div>

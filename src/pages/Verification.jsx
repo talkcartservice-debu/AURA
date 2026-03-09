@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { verificationService, uploadService, profileService } from "@/api/entities";
 import PersonalityVerification from "@/components/verification/PersonalityVerification";
+import DeepVerification from "@/components/verification/DeepVerification";
 import { Button } from "@/components/ui/button";
 import { ShieldCheck, Camera, Loader2, Brain } from "lucide-react";
 import { toast } from "sonner";
@@ -64,6 +65,7 @@ export default function Verification() {
         <TabsList className="w-full mb-4">
           <TabsTrigger value="identity" className="flex-1 gap-1"><ShieldCheck className="w-4 h-4" /> Identity</TabsTrigger>
           <TabsTrigger value="personality" className="flex-1 gap-1"><Brain className="w-4 h-4" /> Personality</TabsTrigger>
+          <TabsTrigger value="deep" className="flex-1 gap-1"><ShieldCheck className="w-4 h-4 text-blue-500" /> Deep</TabsTrigger>
         </TabsList>
         <TabsContent value="identity">
           <div className="bg-white rounded-3xl shadow-sm border border-gray-100 p-6">
@@ -146,6 +148,9 @@ export default function Verification() {
         </TabsContent>
         <TabsContent value="personality">
           <PersonalityVerification onComplete={() => qc.invalidateQueries(["myProfile"])} />
+        </TabsContent>
+        <TabsContent value="deep">
+          <DeepVerification />
         </TabsContent>
       </Tabs>
     </div>

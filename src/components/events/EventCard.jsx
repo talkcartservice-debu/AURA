@@ -1,8 +1,10 @@
-import { Calendar, Clock, MapPin, Users, CheckCircle2, Sparkles, Heart, ThumbsUp } from "lucide-react";
+import { Calendar, Clock, MapPin, Users, CheckCircle2, Sparkles, Heart, ThumbsUp, MessageCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { format, parseISO } from "date-fns";
+import { useNavigate } from "react-router-dom";
 
-export default function EventCard({ event, userEmail, onRSVP, onUpvote, showAIInsights = false, onShowAttendees }) {
+export default function EventCard({ event, userEmail, onRSVP, onUpvote, showAIInsights = false, onShowAttendees, onOpenChat }) {
+  const navigate = useNavigate();
   const isGoing = (event.rsvp_emails || []).includes(userEmail);
   const attendeeCount = (event.rsvp_emails || []).length;
   const isFull = event.capacity && attendeeCount >= event.capacity;
@@ -41,8 +43,20 @@ export default function EventCard({ event, userEmail, onRSVP, onUpvote, showAIIn
         </div>
         <div className="flex-1 min-w-0">
           <div className="flex items-start justify-between gap-2">
-            <h3 className="font-bold text-gray-900 text-sm leading-tight">
+            <h3 className="font-bold text-gray-900 text-sm leading-tight flex items-center gap-1.5">
               {event.title}
+              {isGoing && (
+                <button 
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    if (onOpenChat) onOpenChat(event);
+                    else navigate(`/events/${event._id}/chat`);
+                  }}
+                  className="p-1 hover:bg-rose-100 rounded-full transition-colors group"
+                >
+                  <MessageCircle className="w-4 h-4 text-rose-500 group-hover:scale-110 transition-transform" />
+                </button>
+              )}
             </h3>
             {isGoing && (
               <CheckCircle2 className="w-4 h-4 text-rose-500 flex-shrink-0 mt-0.5" />
@@ -123,6 +137,18 @@ export default function EventCard({ event, userEmail, onRSVP, onUpvote, showAIIn
                 ? "Event Full"
                 : "RSVP"}
           </Button>
+
+          {isGoing && (
+            <Button
+              onClick={() => onOpenChat ? onOpenChat(event) : navigate(`/events/${event._id}/chat`)}
+              size="sm"
+              className="rounded-xl h-9 text-xs font-semibold bg-white border-2 border-rose-200 text-rose-600 hover:bg-rose-50"
+              variant="outline"
+            >
+              <MessageCircle className="w-3.5 h-3.5 mr-1.5" />
+              Chat
+            </Button>
+          )}
           
           {/* Upvote for Community Events */}
           {isCommunitySuggested && onUpvote && (

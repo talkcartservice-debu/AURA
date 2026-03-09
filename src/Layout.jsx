@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { Outlet, NavLink, useNavigate } from "react-router-dom";
-import { Compass, Heart, MessageCircle, Users, User } from "lucide-react";
+import { Compass, Heart, MessageCircle, Users, User, Calendar } from "lucide-react";
 import { useSocket } from "@/hooks/useSocket";
 import { toast } from "sonner";
 import { messageService, profileService } from "@/api/entities";
@@ -93,12 +93,30 @@ export default function Layout() {
       showBrowserNotification("New match!", other_email ? `You matched with ${other_email}` : "You have a new match!");
     };
 
+    const handleEventMessage = (payload) => {
+      const { event_id, message } = payload || {};
+      if (!event_id || !message) return;
+
+      // Only show if not already on that event chat screen
+      if (window.location.pathname !== `/events/${event_id}/chat`) {
+        toast.info(`New event message`, {
+          description: message.content || "Image received",
+          action: {
+            label: "Open chat",
+            onClick: () => navigate(`/events/${event_id}/chat`),
+          },
+        });
+      }
+    };
+
     on("message_received", handleIncomingMessage);
     on("match_created", handleNewMatch);
+    on("event_message_received", handleEventMessage);
 
     return () => {
       off("message_received");
       off("match_created");
+      off("event_message_received");
     };
   }, [on, off, navigate]);
 

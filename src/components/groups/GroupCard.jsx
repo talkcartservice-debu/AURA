@@ -1,19 +1,30 @@
-import { Users, MapPin, MessageCircle } from "lucide-react";
+import { Users, MapPin, MessageCircle, Clock, Check, X as XIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 
-export default function GroupCard({ group, userEmail, onJoin, onLeave, onCreateEvent, onOpenChat }) {
+export default function GroupCard({ group, userEmail, onJoin, onLeave, onCreateEvent, onOpenChat, onManageRequests }) {
   const isMember = (group.member_emails || []).includes(userEmail);
+  const isPending = (group.pending_member_emails || []).includes(userEmail);
+  const isCreator = group.creator_email === userEmail;
   const memberCount = (group.member_emails || []).length;
+  const pendingCount = (group.pending_member_emails || []).length;
   const isFull = group.max_members && memberCount >= group.max_members;
 
   return (
-    <div className={`bg-white rounded-2xl border-2 p-4 shadow-sm transition-all ${isMember ? "border-rose-200 bg-rose-50/30" : "border-gray-100"}`}>
+    <div className={`bg-white rounded-2xl border-2 p-4 shadow-sm transition-all ${isMember ? "border-rose-200 bg-rose-50/30" : isPending ? "border-amber-100 bg-amber-50/20" : "border-gray-100"}`}>
       <div className="flex items-start gap-3">
         <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-rose-100 to-purple-100 flex items-center justify-center text-2xl flex-shrink-0">
           {group.cover_emoji || "🎉"}
         </div>
         <div className="flex-1 min-w-0">
-          <h3 className="font-bold text-gray-900 text-sm">{group.name}</h3>
+          <div className="flex items-center justify-between gap-2">
+            <h3 className="font-bold text-gray-900 text-sm truncate">{group.name}</h3>
+            {isCreator && (
+              <Badge variant="secondary" className="bg-purple-100 text-purple-700 text-[10px] px-1.5 h-5 border-none">
+                Creator
+              </Badge>
+            )}
+          </div>
           {group.description && (
             <p className="text-xs text-gray-500 mt-0.5 line-clamp-2">{group.description}</p>
           )}
@@ -38,40 +49,73 @@ export default function GroupCard({ group, userEmail, onJoin, onLeave, onCreateE
         </div>
       </div>
       <div className="flex gap-2 mt-3">
-        <Button
-          onClick={() => (isMember ? onLeave(group) : onJoin(group))}
-          disabled={isFull && !isMember}
-          size="sm"
-          className={`flex-1 rounded-xl h-8 text-xs font-semibold ${
-            isMember
-              ? "bg-rose-100 text-rose-700 hover:bg-rose-200 border border-rose-200"
-              : isFull
+        {isMember ? (
+          <>
+            <Button
+              onClick={() => onLeave(group)}
+              size="sm"
+              className="flex-1 rounded-xl h-8 text-xs font-semibold bg-rose-100 text-rose-700 hover:bg-rose-200 border border-rose-200"
+              variant="ghost"
+            >
+              Leave Group
+            </Button>
+            {onCreateEvent && (
+              <Button
+                onClick={() => onCreateEvent(group._id)}
+                size="sm"
+                variant="outline"
+                className="rounded-xl h-8 text-xs font-semibold border-purple-200 text-purple-600 hover:bg-purple-50"
+              >
+                + Event
+              </Button>
+            )}
+            {onOpenChat && (
+              <Button
+                onClick={() => onOpenChat(group)}
+                size="sm"
+                variant="outline"
+                className="rounded-xl h-8 text-xs font-semibold border-rose-200 text-rose-600 hover:bg-rose-50"
+              >
+                <MessageCircle className="w-3.5 h-3.5 mr-1" />
+                Chat
+              </Button>
+            )}
+          </>
+        ) : isPending ? (
+          <Button
+            disabled
+            size="sm"
+            className="flex-1 rounded-xl h-8 text-xs font-semibold bg-amber-50 text-amber-600 border border-amber-100 cursor-default"
+            variant="ghost"
+          >
+            <Clock className="w-3 h-3 mr-1.5" />
+            Pending Approval
+          </Button>
+        ) : (
+          <Button
+            onClick={() => onJoin(group)}
+            disabled={isFull}
+            size="sm"
+            className={`flex-1 rounded-xl h-8 text-xs font-semibold ${
+              isFull
                 ? "bg-gray-100 text-gray-400 cursor-not-allowed"
                 : "bg-gradient-to-r from-rose-500 to-purple-600 text-white"
-          }`}
-          variant="ghost"
-        >
-          {isMember ? "Leave Group" : isFull ? "Group Full" : "Join Group"}
-        </Button>
-        {isMember && onCreateEvent && (
-          <Button
-            onClick={() => onCreateEvent(group._id)}
-            size="sm"
-            variant="outline"
-            className="rounded-xl h-8 text-xs font-semibold border-purple-200 text-purple-600 hover:bg-purple-50"
+            }`}
+            variant="ghost"
           >
-            + Event
+            {isFull ? "Group Full" : "Request to Join"}
           </Button>
         )}
-        {isMember && onOpenChat && (
+
+        {isCreator && pendingCount > 0 && onManageRequests && (
           <Button
-            onClick={() => onOpenChat(group)}
+            onClick={() => onManageRequests(group)}
             size="sm"
             variant="outline"
-            className="rounded-xl h-8 text-xs font-semibold border-rose-200 text-rose-600 hover:bg-rose-50"
+            className="rounded-xl h-8 text-xs font-bold border-amber-200 bg-amber-50 text-amber-700 hover:bg-amber-100 animate-pulse"
           >
-            <MessageCircle className="w-3.5 h-3.5 mr-1" />
-            Chat
+            <Users className="w-3.5 h-3.5 mr-1" />
+            Requests ({pendingCount})
           </Button>
         )}
       </div>

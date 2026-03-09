@@ -42,14 +42,80 @@ router.post("/:id/join", auth, async (req, res) => {
   try {
     const group = await Group.findById(req.params.id);
     if (!group) return res.status(404).json({ error: "Group not found" });
+    
+    // Check if user is already a member
+    if (group.member_emails.includes(req.user.email)) {
+      return res.status(400).json({ error: "You are already a member of this group" });
+    }
+
+    // Check if group is full
     if (group.max_members && group.member_emails.length >= group.max_members) {
       return res.status(400).json({ error: "Group is full" });
     }
-    if (!group.member_emails.includes(req.user.email)) {
-      group.member_emails.push(req.user.email);
+
+    // Add to pending if not already there
+    if (!group.pending_member_emails.includes(req.user.email)) {
+      group.pending_member_emails.push(req.user.email);
       await group.save();
     }
-    res.json(group);
+    
+    res.json({ message: "Join request sent to group creator", group });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Approve join request
+router.post("/:id/requests/approve", auth, async (req, res) => {
+  try {
+    const { user_email } = req.body;
+    const group = await Group.findById(req.params.id);
+    if (!group) return res.status(404).json({ error: "Group not found" });
+
+    // Only creator can approve
+    if (group.creator_email !== req.user.email) {
+      return res.status(403).json({ error: "Only group creator can approve requests" });
+    }
+
+    if (!group.pending_member_emails.includes(user_email)) {
+      return res.status(400).json({ error: "User has no pending request" });
+    }
+
+    // Check capacity again
+    if (group.max_members && group.member_emails.length >= group.max_members) {
+      return res.status(400).json({ error: "Group is full" });
+    }
+
+    // Move from pending to member
+    group.pending_member_emails = group.pending_member_emails.filter(e => e !== user_email);
+    if (!group.member_emails.includes(user_email)) {
+      group.member_emails.push(user_email);
+    }
+    await group.save();
+
+    res.json({ message: "Request approved", group });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Reject join request
+router.post("/:id/requests/reject", auth, async (req, res) => {
+  try {
+    const { user_email } = req.body;
+    const group = await Group.findById(req.params.id);
+    if (!group) return res.status(404).json({ error: "Group not found" });
+
+    // Only creator can reject
+    if (group.creator_email !== req.user.email) {
+      return res.status(403).json({ error: "Only group creator can reject requests" });
+    }
+
+    // Remove from pending
+    group.pending_member_emails = group.pending_member_emails.filter(e => e !== user_email);
+    await group.save();
+
+    res.json({ message: "Request rejected", group });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

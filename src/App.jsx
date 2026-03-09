@@ -7,6 +7,8 @@ import Discover from "@/pages/Discover";
 import Matches from "@/pages/Matches";
 import Chat from "@/pages/Chat";
 import Groups from "@/pages/Groups";
+import Events from "@/pages/Events";
+import EventChatScreen from "@/pages/EventChatScreen";
 import MyProfile from "@/pages/MyProfile";
 import Verification from "@/pages/Verification";
 import SilverPremium from "@/pages/SilverPremium";
@@ -70,6 +72,8 @@ export default function App() {
         <Route path="/matches" element={<Matches />} />
         <Route path="/chat/:matchId?" element={<Chat />} />
         <Route path="/groups" element={<Groups />} />
+        <Route path="/events" element={<Events />} />
+        <Route path="/events/:id/chat" element={<EventChatScreen />} />
         <Route path="/profile" element={<MyProfile />} />
         <Route path="/verification" element={<Verification />} />
         <Route path="/premium" element={<Premium />} />
