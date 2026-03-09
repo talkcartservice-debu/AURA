@@ -3,10 +3,13 @@ import { Button } from "@/components/ui/button";
 import { format, parseISO } from "date-fns";
 import { useNavigate } from "react-router-dom";
 
-export default function EventCard({ event, userEmail, onRSVP, onUpvote, showAIInsights = false, onShowAttendees, onOpenChat }) {
+export default function EventCard({ event, userEmail, onRSVP, onUpvote, showAIInsights = false, onShowAttendees, onOpenChat, onManageRequests }) {
   const navigate = useNavigate();
   const isGoing = (event.rsvp_emails || []).includes(userEmail);
+  const isPending = (event.pending_rsvp_emails || []).includes(userEmail);
+  const isCreator = event.creator_email === userEmail;
   const attendeeCount = (event.rsvp_emails || []).length;
+  const pendingCount = (event.pending_rsvp_emails || []).length;
   const isFull = event.capacity && attendeeCount >= event.capacity;
   const isPast = event.event_date && new Date(event.event_date) < new Date();
   
@@ -120,23 +123,43 @@ export default function EventCard({ event, userEmail, onRSVP, onUpvote, showAIIn
         <div className="flex gap-2 mt-3">
           <Button
             onClick={() => onRSVP(event)}
-            disabled={isFull && !isGoing}
+            disabled={(isFull && !isGoing) || isCreator}
             size="sm"
             className={`flex-1 rounded-xl h-9 text-xs font-semibold ${
               isGoing
                 ? "bg-rose-100 text-rose-700 hover:bg-rose-200 border border-rose-200"
-                : isFull
-                  ? "bg-gray-100 text-gray-400 cursor-not-allowed"
-                  : "bg-gradient-to-r from-rose-500 to-purple-600 text-white"
+                : isPending
+                  ? "bg-amber-100 text-amber-700 border border-amber-200"
+                  : isFull
+                    ? "bg-gray-100 text-gray-400 cursor-not-allowed"
+                    : isCreator
+                      ? "bg-purple-100 text-purple-700 border border-purple-200"
+                      : "bg-gradient-to-r from-rose-500 to-purple-600 text-white"
             }`}
             variant="ghost"
           >
-            {isGoing
-              ? "✓ You're going"
-              : isFull
-                ? "Event Full"
-                : "RSVP"}
+            {isCreator 
+              ? "You're the Creator" 
+              : isGoing
+                ? "✓ You're going"
+                : isPending
+                  ? "✓ Pending Approval"
+                  : isFull
+                    ? "Event Full"
+                    : "RSVP"}
           </Button>
+
+          {isCreator && pendingCount > 0 && onManageRequests && (
+            <Button
+              onClick={() => onManageRequests(event)}
+              size="sm"
+              variant="outline"
+              className="rounded-xl h-9 text-xs font-bold border-amber-200 bg-amber-50 text-amber-700 hover:bg-amber-100 animate-pulse"
+            >
+              <Users className="w-3.5 h-3.5 mr-1" />
+              Requests ({pendingCount})
+            </Button>
+          )}
 
           {isGoing && (
             <Button

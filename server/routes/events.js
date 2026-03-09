@@ -34,16 +34,99 @@ router.post("/:id/rsvp", auth, async (req, res) => {
     const event = await Event.findById(req.params.id);
     if (!event) return res.status(404).json({ error: "Event not found" });
 
+    const isCreator = event.creator_email === req.user.email;
+    if (isCreator) return res.status(400).json({ error: "Creator is already attending" });
+
     const idx = event.rsvp_emails.indexOf(req.user.email);
+    const pendingIdx = event.pending_rsvp_emails.indexOf(req.user.email);
+
     if (idx > -1) {
+      // Already an attendee, "leave" the event
       event.rsvp_emails.splice(idx, 1);
+    } else if (pendingIdx > -1) {
+      // Cancel pending request
+      event.pending_rsvp_emails.splice(pendingIdx, 1);
     } else {
+      // New RSVP
       if (event.capacity && event.rsvp_emails.length >= event.capacity) {
         return res.status(400).json({ error: "Event is full" });
       }
-      event.rsvp_emails.push(req.user.email);
+
+      // If it's a private event, it needs approval. If public, join immediately.
+      // (Using is_public field as a toggle for approval requirement)
+      if (event.is_public === false) {
+        event.pending_rsvp_emails.push(req.user.email);
+        
+        // Notify creator
+        try {
+          emitToUsers([event.creator_email], "event_join_request", {
+            event_id: event._id.toString(),
+            event_title: event.title,
+            user_email: req.user.email
+          });
+        } catch {}
+      } else {
+        event.rsvp_emails.push(req.user.email);
+      }
     }
     await event.save();
+    res.json(event);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.post("/:id/requests/approve", auth, async (req, res) => {
+  try {
+    const { user_email } = req.body;
+    const event = await Event.findById(req.params.id);
+    if (!event) return res.status(404).json({ error: "Event not found" });
+
+    if (event.creator_email !== req.user.email) {
+      return res.status(403).json({ error: "Only creator can approve requests" });
+    }
+
+    const pendingIdx = event.pending_rsvp_emails.indexOf(user_email);
+    if (pendingIdx === -1) return res.status(400).json({ error: "Request not found" });
+
+    if (event.capacity && event.rsvp_emails.length >= event.capacity) {
+      return res.status(400).json({ error: "Event is full" });
+    }
+
+    event.pending_rsvp_emails.splice(pendingIdx, 1);
+    event.rsvp_emails.push(user_email);
+    await event.save();
+
+    // Notify user
+    try {
+      emitToUsers([user_email], "event_request_approved", {
+        event_id: event._id.toString(),
+        event_title: event.title
+      });
+    } catch {}
+
+    res.json(event);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.post("/:id/requests/reject", auth, async (req, res) => {
+  try {
+    const { user_email } = req.body;
+    const event = await Event.findById(req.params.id);
+    if (!event) return res.status(404).json({ error: "Event not found" });
+
+    if (event.creator_email !== req.user.email) {
+      return res.status(403).json({ error: "Only creator can reject requests" });
+    }
+
+    const pendingIdx = event.pending_rsvp_emails.indexOf(user_email);
+    if (pendingIdx === -1) return res.status(400).json({ error: "Request not found" });
+
+    event.pending_rsvp_emails.splice(pendingIdx, 1);
+    await event.save();
+
     res.json(event);
   } catch (err) {
     res.status(500).json({ error: err.message });

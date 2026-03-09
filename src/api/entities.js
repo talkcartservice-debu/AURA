@@ -62,6 +62,8 @@ export const eventService = {
   list: (groupId) => api.get("/events", { params: groupId ? { group_id: groupId } : {} }).then((r) => r.data),
   create: (data) => api.post("/events", data).then((r) => r.data),
   rsvp: (id) => api.post(`/events/${id}/rsvp`).then((r) => r.data),
+  approveRequest: (id, user_email) => api.post(`/events/${id}/requests/approve`, { user_email }).then((r) => r.data),
+  rejectRequest: (id, user_email) => api.post(`/events/${id}/requests/reject`, { user_email }).then((r) => r.data),
   getAttendees: (id) => api.get(`/events/${id}/attendees`).then((r) => r.data),
   getMessages: (id) => api.get(`/events/${id}/messages`).then((r) => r.data),
   sendMessage: (id, data) => api.post(`/events/${id}/messages`, data).then((r) => r.data),

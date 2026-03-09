@@ -6,6 +6,7 @@ import { useAuth } from "@/lib/AuthContext";
 import CreateEventModal from "@/components/events/CreateEventModal";
 import EventCard from "@/components/events/EventCard";
 import AttendeeListModal from "@/components/events/AttendeeListModal";
+import RSVPRequestsModal from "@/components/events/RSVPRequestsModal";
 import CommunityEventSuggestion from "@/components/events/CommunityEventSuggestion";
 import { Button } from "@/components/ui/button";
 import { Plus, Loader2, Calendar, Sparkles, MessageCircle } from "lucide-react";
@@ -20,6 +21,7 @@ export default function Events() {
   const [showCreate, setShowCreate] = useState(false);
   const [showSuggestModal, setShowSuggestModal] = useState(false);
   const [activeEventAttendees, setActiveEventAttendees] = useState(null);
+  const [activeRequestsEvent, setActiveRequestsEvent] = useState(null);
   
   const { data: events, isLoading } = useQuery({ 
     queryKey: ["events"], 
@@ -50,6 +52,41 @@ export default function Events() {
       qc.invalidateQueries(["events"]);
     } catch (err) {
       toast.error(err.response?.data?.error || "Failed to RSVP");
+    }
+  }
+
+  async function handleApproveRequest(eventId, userEmail) {
+    try {
+      await eventService.approveRequest(eventId, userEmail);
+      qc.invalidateQueries(["events"]);
+      
+      if (activeRequestsEvent?._id === eventId) {
+        setActiveRequestsEvent(prev => ({
+          ...prev,
+          pending_rsvp_emails: prev.pending_rsvp_emails.filter(e => e !== userEmail),
+          rsvp_emails: [...prev.rsvp_emails, userEmail]
+        }));
+      }
+      toast.success("Request approved");
+    } catch (err) {
+      toast.error("Failed to approve request");
+    }
+  }
+
+  async function handleRejectRequest(eventId, userEmail) {
+    try {
+      await eventService.rejectRequest(eventId, userEmail);
+      qc.invalidateQueries(["events"]);
+
+      if (activeRequestsEvent?._id === eventId) {
+        setActiveRequestsEvent(prev => ({
+          ...prev,
+          pending_rsvp_emails: prev.pending_rsvp_emails.filter(e => e !== userEmail)
+        }));
+      }
+      toast.success("Request rejected");
+    } catch (err) {
+      toast.error("Failed to reject request");
     }
   }
 
@@ -117,6 +154,7 @@ export default function Events() {
                   showAIInsights={true}
                   onShowAttendees={(event) => setActiveEventAttendees(event)}
                   onOpenChat={(event) => navigate(`/events/${event._id}/chat`)}
+                  onManageRequests={(event) => setActiveRequestsEvent(event)}
                 />
               ))}
             </div>
@@ -150,6 +188,7 @@ export default function Events() {
                   showAIInsights={true}
                   onShowAttendees={(event) => setActiveEventAttendees(event)}
                   onOpenChat={(event) => navigate(`/events/${event._id}/chat`)}
+                  onManageRequests={(event) => setActiveRequestsEvent(event)}
                 />
               ))}
             </div>
@@ -186,6 +225,7 @@ export default function Events() {
                   onRSVP={handleRSVP}
                   showAIInsights={true}
                   onOpenChat={(event) => navigate(`/events/${event._id}/chat`)}
+                  onManageRequests={(event) => setActiveRequestsEvent(event)}
                 />
               ))}
             </div>
@@ -213,6 +253,15 @@ export default function Events() {
         <AttendeeListModal
           event={activeEventAttendees}
           onClose={() => setActiveEventAttendees(null)}
+        />
+      )}
+
+      {activeRequestsEvent && (
+        <RSVPRequestsModal
+          event={activeRequestsEvent}
+          onClose={() => setActiveRequestsEvent(null)}
+          onApprove={handleApproveRequest}
+          onReject={handleRejectRequest}
         />
       )}
     </div>

@@ -13,6 +13,7 @@ const eventSchema = new mongoose.Schema(
     group_id: { type: mongoose.Schema.Types.ObjectId, ref: "Group" },
     creator_email: { type: String, required: true },
     rsvp_emails: [{ type: String }],
+    pending_rsvp_emails: [{ type: String }],
     
     // AI Relationship Coach fields
     ai_insights: [{
