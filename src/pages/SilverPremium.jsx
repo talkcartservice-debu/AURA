@@ -50,7 +50,8 @@ export default function SilverPremium() {
       window.location.href = authorization_url;
     } catch (err) {
       console.error("Initialize error:", err);
-      toast.error("Failed to initialize payment. Please try again.");
+      const msg = err.response?.data?.error || "Failed to initialize payment. Please try again.";
+      toast.error(msg);
       setLoading(false);
     }
   }

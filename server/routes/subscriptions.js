@@ -35,8 +35,16 @@ router.get("/", auth, async (req, res) => {
 
 // Initialize Paystack payment for any plan
 router.post("/initialize", auth, async (req, res) => {
+  const PAYSTACK_SECRET = process.env.PAYSTACK_SECRET_KEY;
+  
   try {
     const { plan, billing_cycle, add_casual, callback_url } = req.body;
+    
+    if (!PAYSTACK_SECRET || PAYSTACK_SECRET.includes('replace_with')) {
+      return res.status(500).json({ 
+        error: "Paystack API key is not configured. Please add it to your server .env file." 
+      });
+    }
     
     console.log('Initialize payment request:', {
       plan,
@@ -137,7 +145,10 @@ router.post("/initialize", auth, async (req, res) => {
       });
     }
     
-    res.status(500).json({ error: "Failed to initialize payment" });
+    res.status(500).json({ 
+      error: err.response?.data?.message || "Failed to initialize payment",
+      details: err.message
+    });
   }
 });
 
