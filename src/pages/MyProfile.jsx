@@ -75,6 +75,10 @@ export default function MyProfile() {
   const set = (k, v) => setForm((f) => ({ ...f, [k]: v }));
 
   async function handleSave() {
+    if (!form.display_name?.trim()) return toast.error("Display name is required");
+    if (form.age && (form.age < 18 || form.age > 100)) return toast.error("Please enter a valid age (18+)");
+    if (form.bio && form.bio.length > 500) return toast.error("Bio must be less than 500 characters");
+
     setSaving(true);
     try {
       await profileService.updateMe(form);

@@ -181,7 +181,7 @@ export default function Discover() {
         </div>
       ) : (
         <div className="relative h-[600px] w-full mt-4">
-          <AnimatePresence>
+          <AnimatePresence initial={false}>
             {filtered.slice(0, 3).reverse().map((dm, index) => {
               // Only top 3 cards in stack for performance
               const isTop = index === filtered.slice(0, 3).length - 1;
