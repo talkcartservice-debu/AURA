@@ -4,7 +4,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { eventService, profileService, uploadService } from "@/api/entities";
 import { useAuth } from "@/lib/AuthContext";
 import { useSocket } from "@/hooks/useSocket";
-import { X, Send, Loader2, User, AlertCircle, Camera, Image as ImageIcon, Smile, ArrowLeft, MoreVertical, Reply, Pencil, Trash2, CornerUpLeft } from "lucide-react";
+import { X, Send, Loader2, User, AlertCircle, Camera, Image as ImageIcon, Smile, ArrowLeft, MoreVertical, Reply, Pencil, Trash2, CornerUpLeft, CheckCircle2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import {

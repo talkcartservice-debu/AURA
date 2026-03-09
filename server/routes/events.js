@@ -90,7 +90,7 @@ router.get("/:id/messages", auth, async (req, res) => {
 
 router.post("/:id/messages", auth, async (req, res) => {
   try {
-    const { content, image_url } = req.body;
+    const { content, image_url, reply_to } = req.body;
     
     if (!content && !image_url) {
       return res.status(400).json({ error: "Content or image_url is required" });
@@ -111,6 +111,7 @@ router.post("/:id/messages", auth, async (req, res) => {
       sender_email: req.user.email,
       content,
       image_url,
+      reply_to: reply_to || null,
     });
 
     // Notify all attendees + creator except sender
@@ -125,6 +126,65 @@ router.post("/:id/messages", auth, async (req, res) => {
     }
 
     res.status(201).json(message);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.put("/:id/messages/:messageId", auth, async (req, res) => {
+  try {
+    const { content } = req.body;
+    const message = await EventMessage.findOne({ _id: req.params.messageId, event_id: req.params.id });
+    
+    if (!message) return res.status(404).json({ error: "Message not found" });
+    if (message.sender_email !== req.user.email) {
+      return res.status(403).json({ error: "Can only edit your own messages" });
+    }
+
+    message.content = content;
+    message.edited = true;
+    await message.save();
+
+    // Notify all attendees + creator except sender
+    const event = await Event.findById(req.params.id);
+    if (event) {
+      const recipients = [...new Set([...event.rsvp_emails, event.creator_email])].filter(e => e !== req.user.email);
+      emitToUsers(recipients, "event_message_edited", {
+        event_id: event._id.toString(),
+        message_id: message._id.toString(),
+        content
+      });
+    }
+
+    res.json(message);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.delete("/:id/messages/:messageId", auth, async (req, res) => {
+  try {
+    const message = await EventMessage.findOne({ _id: req.params.messageId, event_id: req.params.id });
+    
+    if (!message) return res.status(404).json({ error: "Message not found" });
+    if (message.sender_email !== req.user.email) {
+      return res.status(403).json({ error: "Can only delete your own messages" });
+    }
+
+    message.deleted = true;
+    await message.save();
+
+    // Notify all attendees + creator except sender
+    const event = await Event.findById(req.params.id);
+    if (event) {
+      const recipients = [...new Set([...event.rsvp_emails, event.creator_email])].filter(e => e !== req.user.email);
+      emitToUsers(recipients, "event_message_deleted", {
+        event_id: event._id.toString(),
+        message_id: message._id.toString()
+      });
+    }
+
+    res.json({ success: true });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
