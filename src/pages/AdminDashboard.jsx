@@ -18,6 +18,7 @@ import {
   ShieldAlert,
   BarChart3,
   Calendar,
+  CalendarPlus,
   Lock
 } from "lucide-react";
 import { useAuth } from "@/lib/AuthContext";
@@ -86,6 +87,7 @@ const AdminDashboard = () => {
   const [selectedUser, setSelectedUser] = useState(null);
   const [isUserModalOpen, setIsUserModalOpen] = useState(false);
   const [isEventModalOpen, setIsEventModalOpen] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
   const [editingEvent, setEditingEvent] = useState(null);
   const [eventForm, setEventForm] = useState({
     title: "",
@@ -244,23 +246,39 @@ const AdminDashboard = () => {
     }
   };
 
+  const handleToggleEventStatus = async (event) => {
+    try {
+      await adminService.updateEvent(event._id, { is_public: !event.is_public });
+      fetchData();
+      toast.success(`Event marked as ${!event.is_public ? 'Public' : 'Private'}`);
+    } catch (err) {
+      console.error("Failed to toggle event status", err);
+      toast.error("Failed to update event status");
+    }
+  };
+
   const handleDeleteEvent = async (eventId) => {
     if (!window.confirm("Are you sure you want to delete this event?")) return;
     try {
       await adminService.deleteEvent(eventId);
+      toast.success("Event deleted");
       fetchData();
     } catch (err) {
       console.error("Failed to delete event", err);
+      toast.error("Failed to delete event");
     }
   };
 
   const handleSaveEvent = async (e) => {
     e.preventDefault();
+    setIsSaving(true);
     try {
       if (editingEvent) {
         await adminService.updateEvent(editingEvent._id, eventForm);
+        toast.success("Event updated successfully");
       } else {
         await adminService.createEvent(eventForm);
+        toast.success("Event published successfully");
       }
       setIsEventModalOpen(false);
       setEditingEvent(null);
@@ -277,6 +295,9 @@ const AdminDashboard = () => {
       fetchData();
     } catch (err) {
       console.error("Failed to save event", err);
+      toast.error(err.response?.data?.error || "Failed to save event");
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -1077,8 +1098,8 @@ const AdminDashboard = () => {
                   onClick={() => openEventModal()}
                   className="bg-rose-500 hover:bg-rose-600 text-white border-0 rounded-xl"
                 >
-                  <UserPlus className="w-4 h-4 mr-2" />
-                  Create Event
+                  <CalendarPlus className="w-4 h-4 mr-2" />
+                  Publish Event
                 </Button>
               </CardHeader>
               <CardContent>
@@ -1123,9 +1144,16 @@ const AdminDashboard = () => {
                             </Badge>
                           </TableCell>
                           <TableCell>
-                            <Badge className={event.is_public ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-700"}>
-                              {event.is_public ? 'Public' : 'Private'}
-                            </Badge>
+                            <button 
+                              onClick={() => handleToggleEventStatus(event)}
+                              className={`px-3 py-1 rounded-full text-[10px] font-black transition-all border ${
+                                event.is_public 
+                                  ? "bg-green-100 border-green-200 text-green-700 hover:bg-green-200" 
+                                  : "bg-gray-100 border-gray-200 text-gray-700 hover:bg-gray-200"
+                              }`}
+                            >
+                              {event.is_public ? 'PUBLIC' : 'PRIVATE'}
+                            </button>
                           </TableCell>
                           <TableCell className="text-right">
                             <DropdownMenu>
@@ -1340,17 +1368,28 @@ const AdminDashboard = () => {
             </div>
             <div className="flex items-center justify-between p-3 bg-gray-50 rounded-xl">
               <Label className="cursor-pointer">Public Event</Label>
-              <Switch 
-                checked={eventForm.is_public}
-                onCheckedChange={(checked) => setEventForm({...eventForm, is_public: checked})}
-              />
+              <button
+                type="button"
+                onClick={() => setEventForm({...eventForm, is_public: !eventForm.is_public})}
+                className={`px-6 py-2 rounded-xl text-xs font-black transition-all border-2 ${
+                  eventForm.is_public 
+                    ? 'bg-rose-600 border-rose-700 text-white' 
+                    : 'bg-gray-200 border-gray-300 text-gray-600'
+                } cursor-pointer hover:scale-105 active:scale-95 shadow-sm`}
+              >
+                {eventForm.is_public ? 'ON' : 'OFF'}
+              </button>
             </div>
             <DialogFooter className="pt-4">
               <Button type="button" variant="outline" onClick={() => setIsEventModalOpen(false)} className="rounded-xl">
                 Cancel
               </Button>
-              <Button type="submit" className="bg-gradient-to-r from-rose-500 to-purple-600 hover:from-rose-600 hover:to-purple-700 text-white rounded-xl border-0">
-                {editingEvent ? "Save Changes" : "Create Event"}
+              <Button 
+                type="submit" 
+                disabled={isSaving}
+                className="bg-gradient-to-r from-rose-500 to-purple-600 hover:from-rose-600 hover:to-purple-700 text-white rounded-xl border-0"
+              >
+                {isSaving ? "Saving..." : (editingEvent ? "Save Changes" : "Publish Event")}
               </Button>
             </DialogFooter>
           </form>
