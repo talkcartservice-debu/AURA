@@ -193,3 +193,30 @@ export const relationshipCoachService = {
   getProfileReview: () =>
     api.get("/coach/profile-review").then((r) => r.data),
 };
+
+// Admin
+export const adminService = {
+  login: (data) => api.post("/admin/login", data).then((r) => r.data),
+  getStats: () => api.get("/admin/stats").then((r) => r.data),
+  getUsers: () => api.get("/admin/users").then((r) => r.data),
+  updateUserRole: (id, role) => api.patch(`/admin/users/${id}/role`, { role }).then((r) => r.data),
+  updateUserStatus: (id, status) => api.patch(`/admin/users/${id}/status`, { status }).then((r) => r.data),
+  warnUser: (id, reason) => api.post(`/admin/users/${id}/warn`, { reason }).then((r) => r.data),
+  forceVerification: (id) => api.post(`/admin/users/${id}/force-verification`).then((r) => r.data),
+  grantPremium: (id) => api.post(`/admin/users/${id}/grant-premium`).then((r) => r.data),
+  getLogs: () => api.get("/admin/logs").then((r) => r.data),
+  getReports: () => api.get("/admin/reports").then((r) => r.data),
+  updateReportStatus: (id, status) => api.patch(`/admin/reports/${id}`, { status }).then((r) => r.data),
+  getVerifications: () => api.get("/admin/verifications").then((r) => r.data),
+  updateVerificationStatus: (id, status, reason) => api.patch(`/admin/verifications/${id}`, { status, reason }).then((r) => r.data),
+  getRevenue: () => api.get("/admin/revenue").then((r) => r.data),
+  refundTransaction: (id, amount, reason) => api.post(`/admin/transactions/${id}/refund`, { amount, reason }).then((r) => r.data),
+  extendPremium: (id, days) => api.post(`/admin/users/${id}/extend-premium`, { days }).then((r) => r.data),
+  getEvents: () => api.get("/admin/events").then((r) => r.data),
+  createEvent: (data) => api.post("/admin/events", data).then((r) => r.data),
+  updateEvent: (id, data) => api.put(`/admin/events/${id}`, data).then((r) => r.data),
+  deleteEvent: (id) => api.delete(`/admin/events/${id}`).then((r) => r.data),
+  getEventMetrics: (id) => api.get(`/admin/events/${id}/metrics`).then((r) => r.data),
+  getSettings: () => api.get("/admin/settings").then((r) => r.data),
+  updateSetting: (key, value) => api.patch(`/admin/settings/${key}`, { value }).then((r) => r.data),
+};

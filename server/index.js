@@ -22,6 +22,8 @@ import biometricAuthRoutes from "./routes/biometricAuth.js";
 import locationRoutes from "./routes/location.js";
 import deepVerificationRoutes from "./routes/deepVerification.js";
 import relationshipCoachRoutes from "./routes/relationshipCoach.js";
+import adminRoutes from "./routes/admin.js";
+import maintenance from "./middleware/maintenance.js";
 import { initializeSocketIO } from "./signaling.js";
 
 const app = express();
@@ -32,6 +34,7 @@ initializeSocketIO(httpServer);
 
 app.use(cors());
 app.use(express.json());
+app.use(maintenance);
 
 // Routes
 app.use("/api/auth", authRoutes);
@@ -52,6 +55,7 @@ app.use("/api/date-events", dateEventRoutes);
 app.use("/api/coach", relationshipCoachRoutes);
 app.use("/api/calls", callRoutes);
 app.use("/api/location", locationRoutes);
+app.use("/api/admin", adminRoutes);
 
 // Health check
 app.get("/api/health", (_req, res) => res.json({ status: "ok" }));

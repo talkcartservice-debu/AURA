@@ -13,6 +13,8 @@ import SilverPremium from "@/pages/SilverPremium";
 import Premium from "@/pages/Premium";
 import PrivacySettings from "@/pages/PrivacySettings";
 import BlindDatePage from "@/pages/BlindDate";
+import AdminDashboard from "@/pages/AdminDashboard";
+import AdminLogin from "@/pages/AdminLogin";
 import PageNotFound from "@/lib/PageNotFound";
 import { Loader2 } from "lucide-react";
 
@@ -29,10 +31,26 @@ function ProtectedRoute({ children }) {
   return children;
 }
 
+function AdminRoute({ children }) {
+  const { user, loading } = useAuth();
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <Loader2 className="w-8 h-8 animate-spin text-rose-500" />
+      </div>
+    );
+  }
+  if (!user || !["super_admin", "admin", "moderator", "support"].includes(user.role)) {
+    return <Navigate to="/admin/login" replace />;
+  }
+  return children;
+}
+
 export default function App() {
   return (
     <Routes>
       <Route path="/" element={<Landing />} />
+      <Route path="/admin/login" element={<AdminLogin />} />
       <Route
         path="/setup"
         element={
@@ -59,6 +77,14 @@ export default function App() {
         <Route path="/silver" element={<SilverPremium />} />
         <Route path="/blind-date" element={<BlindDatePage />} />
       </Route>
+      <Route
+        path="/admin/*"
+        element={
+          <AdminRoute>
+            <AdminDashboard />
+          </AdminRoute>
+        }
+      />
       <Route path="*" element={<PageNotFound />} />
     </Routes>
   );

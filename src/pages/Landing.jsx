@@ -66,12 +66,17 @@ export default function Landing() {
     }
   }, [mode, user]);
 
-  // If already logged in and on login mode, send to Discover
+  // If already logged in and on login mode, send to Discover or Admin
   // (New signups stay on signup mode and are sent to /setup instead)
-  if (user && mode === "login") {
-    navigate("/discover", { replace: true });
-    return null;
-  }
+  useEffect(() => {
+    if (user && mode === "login") {
+      if (["super_admin", "admin", "moderator", "support"].includes(user.role)) {
+        navigate("/admin", { replace: true });
+      } else {
+        navigate("/discover", { replace: true });
+      }
+    }
+  }, [user, mode, navigate]);
 
   // Clear errors when switching modes
   const handleModeChange = (newMode) => {
@@ -120,7 +125,11 @@ export default function Landing() {
       if (mode === "login") {
         const data = await login(email, password);
         toast.success("Welcome back!");
-        navigate("/discover");
+        if (["super_admin", "admin", "moderator", "support"].includes(data.role)) {
+          navigate("/admin");
+        } else {
+          navigate("/discover");
+        }
         // Biometric modal will auto-open via useEffect if needed
       } else {
         await signup(email, password, username.trim());

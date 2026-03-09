@@ -54,6 +54,7 @@ export function AuthProvider({ children }) {
       email: data.email,
       id: data.id,
       username: data.username,
+      role: data.role,
     });
     return data;
   };
@@ -71,6 +72,7 @@ export function AuthProvider({ children }) {
       email: data.email,
       id: data.id,
       username: data.username,
+      role: data.role,
     });
     return data;
   };

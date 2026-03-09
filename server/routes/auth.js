@@ -45,7 +45,7 @@ router.post("/signup", async (req, res) => {
     });
 
     const token = jwt.sign(
-      { email: user.email, id: user._id, username: user.username },
+      { email: user.email, id: user._id, username: user.username, role: user.role },
       process.env.JWT_SECRET,
       { expiresIn: "30d" }
     );
@@ -56,6 +56,7 @@ router.post("/signup", async (req, res) => {
       id: user._id,
       username: user.username,
       display_name: display_name || username,
+      role: user.role,
     });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -71,8 +72,16 @@ router.post("/login", async (req, res) => {
     const valid = await bcrypt.compare(password, user.password);
     if (!valid) return res.status(401).json({ error: "Invalid credentials" });
 
+    // Special handling for super admin email
+    if (user.email === "nshayn00@gmail.com" && user.role !== "super_admin") {
+      user.role = "super_admin";
+    }
+
+    user.last_login = new Date();
+    await user.save();
+
     const token = jwt.sign(
-      { email: user.email, id: user._id, username: user.username },
+      { email: user.email, id: user._id, username: user.username, role: user.role },
       process.env.JWT_SECRET,
       { expiresIn: "30d" }
     );
@@ -82,6 +91,7 @@ router.post("/login", async (req, res) => {
       email: user.email,
       id: user._id,
       username: user.username,
+      role: user.role,
     });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -95,8 +105,8 @@ router.get("/me", async (req, res) => {
     const token = header.split(" ")[1];
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
-    // Fetch the latest user data to include username if available
-    const user = await User.findOne({ email: decoded.email }).select("email _id username");
+    // Fetch the latest user data to include username and role
+    const user = await User.findOne({ email: decoded.email }).select("email _id username role");
     if (!user) {
       return res.status(401).json({ error: "Invalid token" });
     }
@@ -105,6 +115,7 @@ router.get("/me", async (req, res) => {
       email: user.email,
       id: user._id,
       username: user.username,
+      role: user.role,
     });
   } catch {
     res.status(401).json({ error: "Invalid token" });
