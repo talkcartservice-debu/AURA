@@ -99,17 +99,21 @@ router.post("/:id/messages", auth, async (req, res) => {
     }
 
     const message = await GroupMessage.create({
-      group_id: req.params.id,
+      group_id: group._id,
       sender_email: req.user.email,
       content,
     });
 
     // Notify all members except sender
-    const otherMembers = group.member_emails.filter(e => e !== req.user.email);
-    emitToUsers(otherMembers, "group_message_received", {
-      group_id: req.params.id,
-      message,
-    });
+    try {
+      const otherMembers = group.member_emails.filter(e => e !== req.user.email);
+      emitToUsers(otherMembers, "group_message_received", {
+        group_id: group._id.toString(),
+        message,
+      });
+    } catch (notifyErr) {
+      console.error("Group message signaling error:", notifyErr);
+    }
 
     res.status(201).json(message);
   } catch (err) {

@@ -3,11 +3,12 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { groupService, profileService } from "@/api/entities";
 import { useAuth } from "@/lib/AuthContext";
 import { useSocket } from "@/hooks/useSocket";
-import { X, Send, Loader2, User } from "lucide-react";
+import { X, Send, Loader2, User, AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import ProfileAvatar from "@/components/ProfileAvatar";
 import { format } from "date-fns";
+import { toast } from "sonner";
 
 export default function GroupChatModal({ group, onClose }) {
   const { user } = useAuth();
@@ -24,7 +25,7 @@ export default function GroupChatModal({ group, onClose }) {
 
   useEffect(() => {
     const handleGroupMessage = (payload) => {
-      if (payload?.group_id === group._id) {
+      if (payload?.group_id?.toString() === group?._id?.toString()) {
         qc.invalidateQueries(["groupMessages", group._id]);
       }
     };
@@ -39,6 +40,10 @@ export default function GroupChatModal({ group, onClose }) {
       qc.invalidateQueries(["groupMessages", group._id]);
       setText("");
     },
+    onError: (err) => {
+      console.error("Failed to send message:", err);
+      toast.error(err.response?.data?.error || "Failed to send message. Please try again.");
+    }
   });
 
   useEffect(() => {
