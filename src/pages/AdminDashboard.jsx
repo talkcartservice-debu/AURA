@@ -1616,12 +1616,17 @@ const SettingRow = ({ label, description, checked, onCheckedChange, disabled }) 
       <div className="text-sm font-bold text-gray-900">{label}</div>
       <div className="text-xs text-gray-500">{description}</div>
     </div>
-    <Switch 
-      checked={checked} 
-      onCheckedChange={onCheckedChange} 
+    <button
       disabled={disabled}
-      className="data-[state=checked]:bg-rose-500"
-    />
+      onClick={() => onCheckedChange(!checked)}
+      className={`px-6 py-2 rounded-xl text-xs font-black transition-all border-2 ${
+        checked 
+          ? 'bg-rose-600 border-rose-700 text-white' 
+          : 'bg-gray-200 border-gray-300 text-gray-600'
+      } ${disabled ? 'cursor-not-allowed opacity-50' : 'cursor-pointer hover:scale-105 active:scale-95 shadow-sm'}`}
+    >
+      {checked ? 'ON' : 'OFF'}
+    </button>
   </div>
 );
 
