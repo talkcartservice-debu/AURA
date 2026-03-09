@@ -14,11 +14,14 @@ api.interceptors.request.use((config) => {
   return config;
 });
 
-// Redirect to login on 401 and handle global errors
+// Redirect to login on 401/403 and handle global errors
 api.interceptors.response.use(
   (res) => res,
   (err) => {
-    if (err.response?.status === 401) {
+    if (err.response?.status === 401 || err.response?.status === 403) {
+      const errorMsg = err.response?.data?.error || "Session expired or access denied";
+      toast.error(errorMsg);
+      
       localStorage.removeItem("aura_token");
       localStorage.removeItem("aura_email");
       if (window.location.pathname !== "/") {

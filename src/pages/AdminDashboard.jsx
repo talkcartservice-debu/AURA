@@ -33,6 +33,7 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogDescription,
   DialogFooter,
 } from "@/components/ui/dialog";
 import {
@@ -297,6 +298,72 @@ const AdminDashboard = () => {
     }
   };
 
+  const handleExportReport = () => {
+    let dataToExport = [];
+    let filename = `aura_report_${activeTab}_${new Date().toISOString().split('T')[0]}.csv`;
+
+    switch (activeTab) {
+      case 'overview':
+        dataToExport = [
+          ['Metric', 'Value'],
+          ['Total Users', stats?.totalUsers || 0],
+          ['Active Users', stats?.activeUsers || 0],
+          ['Premium Users', stats?.premiumUsers || 0],
+          ['Total Messages', stats?.totalMessages || 0],
+          ['Total Matches', stats?.totalMatches || 0],
+        ];
+        break;
+      case 'users':
+        dataToExport = [
+          ['Username', 'Email', 'Role', 'Status', 'Risk Score', 'Joined Date'],
+          ...users.map(u => [u.username, u.email, u.role, u.status, u.risk_score, new Date(u.createdAt).toLocaleDateString()])
+        ];
+        break;
+      case 'moderation':
+        dataToExport = [
+          ['Type', 'Reporter/User', 'Reported/Subject', 'Reason', 'Status', 'Date'],
+          ...reports.map(r => ['Report', r.reporter_email, r.reported_email, r.reason, r.status, new Date(r.createdAt).toLocaleDateString()]),
+          ...verifications.map(v => ['Photo Verification', v.user_email, 'N/A', v.verification_type, v.status, new Date(v.createdAt).toLocaleDateString()])
+        ];
+        break;
+      case 'revenue':
+        dataToExport = [
+          ['Reference', 'User', 'Plan', 'Amount', 'Status', 'Date'],
+          ...revenueData?.transactions?.map(tx => [tx.reference, tx.user_email, tx.plan, tx.amount, tx.status, new Date(tx.createdAt).toLocaleDateString()])
+        ];
+        break;
+      case 'safety':
+        dataToExport = [
+          ['User Email', 'Risk Score', 'Status', 'Is Verified'],
+          ...users.filter(u => u.risk_score > 30).map(u => [u.email, u.risk_score, u.status, u.profile?.is_verified ? 'Yes' : 'No'])
+        ];
+        break;
+      case 'events':
+        dataToExport = [
+          ['Title', 'Date', 'Location', 'Capacity', 'Attendees'],
+          ...events.map(e => [e.title, e.event_date, e.location, e.capacity, e.rsvp_emails?.length || 0])
+        ];
+        break;
+      case 'logs':
+        dataToExport = [
+          ['Admin', 'Action', 'Target Type', 'Target ID', 'Timestamp'],
+          ...logs.map(l => [l.adminEmail, l.action, l.targetType, l.targetId, new Date(l.createdAt).toLocaleString()])
+        ];
+        break;
+      default:
+        return;
+    }
+
+    const csvContent = "data:text/csv;charset=utf-8," + dataToExport.map(e => e.join(",")).join("\n");
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement("a");
+    link.setAttribute("href", encodedUri);
+    link.setAttribute("download", filename);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
   const openEventModal = (event = null) => {
     if (event) {
       setEditingEvent(event);
@@ -429,7 +496,10 @@ const AdminDashboard = () => {
             </div>
             <div className="flex gap-3">
               <Button variant="outline" onClick={fetchData}>Refresh Data</Button>
-              <Button className="bg-gradient-to-r from-rose-500 to-purple-600 hover:from-rose-600 hover:to-purple-700 text-white border-0">
+              <Button 
+                onClick={handleExportReport}
+                className="bg-gradient-to-r from-rose-500 to-purple-600 hover:from-rose-600 hover:to-purple-700 text-white border-0"
+              >
                 Export Report
               </Button>
             </div>
@@ -473,21 +543,24 @@ const AdminDashboard = () => {
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 <AlertCard 
                   type="reported" 
-                  count={5} 
+                  count={reports.filter(r => r.status === 'pending').length} 
                   title="Reported Users" 
                   description="New reports pending review" 
+                  onClick={() => setActiveTab("moderation")}
                 />
                 <AlertCard 
                   type="content" 
-                  count={8} 
+                  count={verifications.filter(v => v.status === 'pending').length} 
                   title="Flagged Content" 
                   description="Photos pending moderation" 
+                  onClick={() => setActiveTab("moderation")}
                 />
                 <AlertCard 
                   type="payment" 
-                  count={2} 
+                  count={revenueData?.transactions?.filter(t => t.status === 'failed').length || 0} 
                   title="Payment Issues" 
                   description="Failed transactions" 
+                  onClick={() => setActiveTab("revenue")}
                 />
               </div>
 
@@ -630,13 +703,17 @@ const AdminDashboard = () => {
                                 <DropdownMenuItem onClick={() => handleExtendPremium(u._id)}>
                                   Extend Premium
                                 </DropdownMenuItem>
-                                <DropdownMenuSeparator />
-                                <DropdownMenuItem onClick={() => handleUpdateStatus(u._id, 'suspended')}>
-                                  Suspend Account
-                                </DropdownMenuItem>
-                                <DropdownMenuItem onClick={() => handleUpdateStatus(u._id, 'banned')} className="text-rose-600">
-                                  Ban Permanently
-                                </DropdownMenuItem>
+                                {user?.role === 'super_admin' && (
+                                  <>
+                                    <DropdownMenuSeparator />
+                                    <DropdownMenuItem onClick={() => handleUpdateStatus(u._id, u.status === 'suspended' ? 'active' : 'suspended')}>
+                                      {u.status === 'suspended' ? 'Unsuspend Account' : 'Suspend Account'}
+                                    </DropdownMenuItem>
+                                    <DropdownMenuItem onClick={() => handleUpdateStatus(u._id, u.status === 'banned' ? 'active' : 'banned')} className="text-rose-600">
+                                      {u.status === 'banned' ? 'Unban Account' : 'Ban Permanently'}
+                                    </DropdownMenuItem>
+                                  </>
+                                )}
                                 <DropdownMenuSeparator />
                                 <DropdownMenuLabel>Change Role</DropdownMenuLabel>
                                 <DropdownMenuItem onClick={() => handleUpdateRole(u._id, 'admin')}>Make Admin</DropdownMenuItem>
@@ -776,25 +853,29 @@ const AdminDashboard = () => {
                                   <DropdownMenuItem onClick={() => handleResolveReport(report._id, 'resolved')}>
                                     Mark as Resolved
                                   </DropdownMenuItem>
-                                  <DropdownMenuSeparator />
-                                  <DropdownMenuItem 
-                                    onClick={() => {
-                                      const userToSuspend = users.find(u => u.email === report.reported_email);
-                                      if (userToSuspend) handleUpdateStatus(userToSuspend._id, 'suspended');
-                                    }}
-                                    className="text-amber-600"
-                                  >
-                                    Suspend Reported User
-                                  </DropdownMenuItem>
-                                  <DropdownMenuItem 
-                                    onClick={() => {
-                                      const userToBan = users.find(u => u.email === report.reported_email);
-                                      if (userToBan) handleUpdateStatus(userToBan._id, 'banned');
-                                    }}
-                                    className="text-rose-600"
-                                  >
-                                    Ban Reported User
-                                  </DropdownMenuItem>
+                                  {user?.role === 'super_admin' && (
+                                    <>
+                                      <DropdownMenuSeparator />
+                                      <DropdownMenuItem 
+                                        onClick={() => {
+                                          const userToSuspend = users.find(u => u.email === report.reported_email);
+                                          if (userToSuspend) handleUpdateStatus(userToSuspend._id, 'suspended');
+                                        }}
+                                        className="text-amber-600"
+                                      >
+                                        Suspend Reported User
+                                      </DropdownMenuItem>
+                                      <DropdownMenuItem 
+                                        onClick={() => {
+                                          const userToBan = users.find(u => u.email === report.reported_email);
+                                          if (userToBan) handleUpdateStatus(userToBan._id, 'banned');
+                                        }}
+                                        className="text-rose-600"
+                                      >
+                                        Ban Reported User
+                                      </DropdownMenuItem>
+                                    </>
+                                  )}
                                 </DropdownMenuContent>
                               </DropdownMenu>
                             </TableCell>
@@ -865,7 +946,17 @@ const AdminDashboard = () => {
                           </Badge>
                         </TableCell>
                         <TableCell className="text-right">
-                          <Button variant="ghost" size="sm" className="text-rose-600">Review</Button>
+                          <Button 
+                            variant="ghost" 
+                            size="sm" 
+                            className="text-rose-600 hover:bg-rose-50 rounded-xl"
+                            onClick={() => {
+                              setSelectedUser(u);
+                              setIsUserModalOpen(true);
+                            }}
+                          >
+                            Review
+                          </Button>
                         </TableCell>
                       </TableRow>
                     ))}
@@ -1164,6 +1255,9 @@ const AdminDashboard = () => {
             <DialogTitle className="text-xl font-bold">
               {editingEvent ? "Edit Event" : "Create New Event"}
             </DialogTitle>
+            <DialogDescription>
+              {editingEvent ? "Update the details for this platform event." : "Fill in the details to create a new community event."}
+            </DialogDescription>
           </DialogHeader>
           <form onSubmit={handleSaveEvent} className="space-y-4 pt-4">
             <div className="space-y-2">
@@ -1260,6 +1354,9 @@ const AdminDashboard = () => {
               <BarChart3 className="w-5 h-5 text-rose-500" />
               Event Performance
             </DialogTitle>
+            <DialogDescription>
+              Detailed metrics for this event, including attendance and engagement.
+            </DialogDescription>
           </DialogHeader>
           {eventMetrics && (
             <div className="space-y-6 pt-4">
@@ -1299,6 +1396,10 @@ const AdminDashboard = () => {
       {/* User Details Modal */}
       <Dialog open={isUserModalOpen} onOpenChange={setIsUserModalOpen}>
         <DialogContent className="max-w-3xl rounded-3xl p-0 overflow-hidden border-0">
+          <DialogHeader className="sr-only">
+            <DialogTitle>User Profile Details</DialogTitle>
+            <DialogDescription>Full details and administration controls for this user account.</DialogDescription>
+          </DialogHeader>
           {selectedUser && (
             <div className="flex flex-col h-[80vh]">
               <div className="h-32 bg-gradient-to-r from-rose-500 to-purple-600 p-6 flex items-end">
@@ -1357,18 +1458,23 @@ const AdminDashboard = () => {
                         <ActionButton label="Warn User" onClick={() => handleWarnUser(selectedUser._id)} />
                         <ActionButton label="Force Verify" onClick={() => handleForceVerification(selectedUser._id)} />
                         <ActionButton label="Grant Premium" onClick={() => handleGrantPremium(selectedUser._id)} />
-                        <div className="pt-2">
-                          <ActionButton 
-                            label={selectedUser.status === 'active' ? 'Suspend' : 'Activate'} 
-                            variant={selectedUser.status === 'active' ? 'warning' : 'success'}
-                            onClick={() => handleUpdateStatus(selectedUser._id, selectedUser.status === 'active' ? 'suspended' : 'active')} 
-                          />
-                        </div>
-                        <ActionButton 
-                          label="Ban User" 
-                          variant="danger" 
-                          onClick={() => handleUpdateStatus(selectedUser._id, 'banned')} 
-                        />
+                        
+                        {user?.role === 'super_admin' && (
+                          <>
+                            <div className="pt-2">
+                              <ActionButton 
+                                label={selectedUser.status === 'suspended' ? 'Unsuspend Account' : (selectedUser.status === 'banned' ? 'Activate Account' : 'Suspend Account')} 
+                                variant={selectedUser.status === 'active' ? 'warning' : 'success'}
+                                onClick={() => handleUpdateStatus(selectedUser._id, selectedUser.status === 'active' ? 'suspended' : 'active')} 
+                              />
+                            </div>
+                            <ActionButton 
+                              label={selectedUser.status === 'banned' ? 'Unban User' : 'Ban User'} 
+                              variant={selectedUser.status === 'banned' ? 'success' : 'danger'} 
+                              onClick={() => handleUpdateStatus(selectedUser._id, selectedUser.status === 'banned' ? 'active' : 'banned')} 
+                            />
+                          </>
+                        )}
                       </div>
                     </div>
 
@@ -1460,8 +1566,10 @@ const StatCard = ({ title, value, icon, trend, trendDown, loading }) => (
   </Card>
 );
 
-const AlertCard = ({ type, count, title, description }) => (
-  <div className={`p-5 rounded-2xl border flex items-start gap-4 transition-all hover:shadow-md cursor-pointer ${
+const AlertCard = ({ type, count, title, description, onClick }) => (
+  <div 
+    onClick={onClick}
+    className={`p-5 rounded-2xl border flex items-start gap-4 transition-all hover:shadow-md cursor-pointer ${
     type === 'reported' ? 'bg-rose-50 border-rose-100' :
     type === 'content' ? 'bg-amber-50 border-amber-100' :
     'bg-blue-50 border-blue-100'

@@ -162,7 +162,7 @@ router.patch('/users/:id/role', adminAuth(['super_admin']), async (req, res) => 
   }
 });
 
-router.patch('/users/:id/status', adminAuth(['super_admin', 'admin']), async (req, res) => {
+router.patch('/users/:id/status', adminAuth(['super_admin']), async (req, res) => {
   try {
     const { status } = req.body; // e.g., 'active', 'suspended', 'banned'
     const user = await User.findByIdAndUpdate(req.params.id, { status }, { new: true });
