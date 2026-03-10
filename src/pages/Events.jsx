@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { eventService, dateEventService } from "@/api/entities";
@@ -9,9 +9,21 @@ import AttendeeListModal from "@/components/events/AttendeeListModal";
 import RSVPRequestsModal from "@/components/events/RSVPRequestsModal";
 import CommunityEventSuggestion from "@/components/events/CommunityEventSuggestion";
 import { Button } from "@/components/ui/button";
-import { Plus, Loader2, Calendar, Sparkles, MessageCircle } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Plus, Loader2, Calendar, Sparkles, MessageCircle, Search, Filter, Heart, Zap, Coffee, Music, Trophy, Clock } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
+
+const EVENT_VIBES = [
+  { id: "all", label: "All Vibes", icon: <Filter className="w-3.5 h-3.5" /> },
+  { id: "first-date-friendly", label: "First Date", icon: <Heart className="w-3.5 h-3.5" /> },
+  { id: "romantic", label: "Romantic", icon: "🌹" },
+  { id: "active", label: "Active", icon: <Zap className="w-3.5 h-3.5" /> },
+  { id: "casual", label: "Casual", icon: <Coffee className="w-3.5 h-3.5" /> },
+  { id: "cultural", label: "Cultural", icon: "🎭" },
+  { id: "fun", label: "Fun", icon: "🎉" },
+];
 
 export default function Events() {
   const navigate = useNavigate();
@@ -24,10 +36,31 @@ export default function Events() {
   const [activeEventAttendees, setActiveEventAttendees] = useState(null);
   const [activeRequestsEvent, setActiveRequestsEvent] = useState(null);
   
+  const [search, setSearch] = useState("");
+  const [selectedVibe, setSelectedVibe] = useState("all");
+  const [showPast, setShowPast] = useState(false);
+  
   const { data: events, isLoading } = useQuery({ 
     queryKey: ["events"], 
     queryFn: () => eventService.list() 
   });
+
+  const filteredEvents = useMemo(() => {
+    if (!events) return [];
+    return events.filter(e => {
+      const matchesSearch = !search || 
+        e.title.toLowerCase().includes(search.toLowerCase()) || 
+        e.description?.toLowerCase().includes(search.toLowerCase()) ||
+        e.location?.toLowerCase().includes(search.toLowerCase());
+      
+      const matchesVibe = selectedVibe === "all" || e.event_tags?.includes(selectedVibe);
+      
+      const isPast = e.event_date && new Date(e.event_date) < new Date();
+      const matchesDate = showPast ? true : !isPast;
+      
+      return matchesSearch && matchesVibe && matchesDate;
+    });
+  }, [events, search, selectedVibe, showPast]);
   
   // AI Suggestions
   const { data: suggestionsData, isLoading: loadingSuggestions } = useQuery({
@@ -125,7 +158,9 @@ export default function Events() {
 
   if (isLoading) return <div className="flex items-center justify-center min-h-[60vh]"><Loader2 className="w-8 h-8 animate-spin text-rose-500" /></div>;
 
-  const myEvents = events?.filter(e => e.creator_email === user?.email || e.rsvp_emails?.includes(user?.email)) || [];
+  const myEvents = useMemo(() => {
+    return filteredEvents.filter(e => e.creator_email === user?.email || e.rsvp_emails?.includes(user?.email));
+  }, [filteredEvents, user?.email]);
 
   return (
     <div className="max-w-4xl mx-auto p-4 pb-24">
@@ -144,91 +179,134 @@ export default function Events() {
         </div>
       </div>
 
-      {/* Main Tabs */}
-      <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className="grid w-full grid-cols-3 mb-6 bg-gray-100/50 p-1 rounded-2xl">
-          <TabsTrigger value="all" className="rounded-xl data-[state=active]:bg-white data-[state=active]:shadow-sm">
-            All Events
-          </TabsTrigger>
-          <TabsTrigger value="my" className="rounded-xl data-[state=active]:bg-white data-[state=active]:shadow-sm">
-            My Events
-          </TabsTrigger>
-          <TabsTrigger value="suggestions" className="rounded-xl data-[state=active]:bg-white data-[state=active]:shadow-sm">
-            AI Picks
-          </TabsTrigger>
-        </TabsList>
-
-        {/* All Events Tab */}
-        <TabsContent value="all" className="space-y-4">
-          <div className="flex items-center justify-between mb-2">
-            <h2 className="text-sm font-black text-gray-400 uppercase tracking-widest flex items-center gap-2">
-              <Calendar className="w-4 h-4" /> Upcoming Events
-            </h2>
+      <div className="space-y-6">
+        {/* Filters & Search */}
+        <div className="space-y-4">
+          <div className="relative group">
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 group-focus-within:text-rose-500 transition-colors" />
+            <Input 
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Search events by title, location or description..." 
+              className="pl-11 h-12 rounded-2xl bg-white border-gray-100 focus:border-rose-300 focus:ring-rose-200 shadow-sm"
+            />
           </div>
           
-          {events?.length > 0 ? (
-            <div className="grid gap-4 sm:grid-cols-1">
-              {events.map((e) => (
-                <EventCard 
-                  key={e._id} 
-                  event={e} 
-                  userEmail={user?.email} 
-                  onRSVP={handleRSVP} 
-                  showAIInsights={true}
-                  onShowAttendees={(event) => setActiveEventAttendees(event)}
-                  onOpenChat={(event) => navigate(`/events/${event._id}/chat`)}
-                  onManageRequests={(event) => setActiveRequestsEvent(event)}
-                  onDelete={handleDeleteEvent}
-                  onEdit={handleEditEvent}
-                />
-              ))}
-            </div>
-          ) : (
-            <div className="text-center py-20 bg-gray-50/50 rounded-[2rem] border-2 border-dashed border-gray-100">
-              <div className="w-16 h-16 bg-white rounded-2xl shadow-sm flex items-center justify-center mx-auto mb-4">
-                <Calendar className="w-8 h-8 text-gray-300" />
-              </div>
-              <p className="text-gray-500 font-bold">No events found</p>
-              <p className="text-xs text-gray-400 mt-1">Be the first to create an event!</p>
-            </div>
-          )}
-        </TabsContent>
-
-        {/* My Events Tab */}
-        <TabsContent value="my" className="space-y-4">
-          <div className="flex items-center justify-between mb-2">
-            <h2 className="text-sm font-black text-gray-400 uppercase tracking-widest flex items-center gap-2">
-              <MessageCircle className="w-4 h-4" /> My RSVPs & Events
-            </h2>
+          <div className="flex flex-wrap gap-2 pb-2 overflow-x-auto scrollbar-hide">
+            {EVENT_VIBES.map(vibe => (
+              <button
+                key={vibe.id}
+                onClick={() => setSelectedVibe(vibe.id)}
+                className={`px-4 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition-all border-2 flex items-center gap-2 ${selectedVibe === vibe.id ? "bg-rose-500 border-rose-500 text-white shadow-md shadow-rose-100" : "bg-white border-gray-100 text-gray-500 hover:border-rose-200"}`}
+              >
+                <span>{vibe.icon}</span>
+                <span className="capitalize">{vibe.label}</span>
+              </button>
+            ))}
           </div>
-          
-          {myEvents.length > 0 ? (
-            <div className="grid gap-4">
-              {myEvents.map((e) => (
-                <EventCard 
-                  key={e._id} 
-                  event={e} 
-                  userEmail={user?.email} 
-                  onRSVP={handleRSVP} 
-                  showAIInsights={true}
-                  onShowAttendees={(event) => setActiveEventAttendees(event)}
-                  onOpenChat={(event) => navigate(`/events/${event._id}/chat`)}
-                  onManageRequests={(event) => setActiveRequestsEvent(event)}
-                  onDelete={handleDeleteEvent}
-                  onEdit={handleEditEvent}
-                />
-              ))}
+
+          <div className="flex items-center justify-between px-1">
+            <div className="flex items-center gap-2">
+              <Clock className="w-4 h-4 text-gray-400" />
+              <span className="text-xs font-bold text-gray-500">Show Past Events</span>
             </div>
-          ) : (
-            <div className="text-center py-20 bg-gray-50/50 rounded-[2rem] border-2 border-dashed border-gray-100">
-              <div className="w-16 h-16 bg-white rounded-2xl shadow-sm flex items-center justify-center mx-auto mb-4">
-                <MessageCircle className="w-8 h-8 text-gray-300" />
+            <Switch 
+              checked={showPast}
+              onCheckedChange={setShowPast}
+            />
+          </div>
+        </div>
+
+        {/* Main Tabs */}
+        <Tabs value={activeTab} onValueChange={setActiveTab}>
+          <TabsList className="grid w-full grid-cols-3 mb-6 bg-gray-100/50 p-1 rounded-2xl">
+            <TabsTrigger value="all" className="rounded-xl data-[state=active]:bg-white data-[state=active]:shadow-sm">
+              All Events
+            </TabsTrigger>
+            <TabsTrigger value="my" className="rounded-xl data-[state=active]:bg-white data-[state=active]:shadow-sm">
+              My Events
+            </TabsTrigger>
+            <TabsTrigger value="suggestions" className="rounded-xl data-[state=active]:bg-white data-[state=active]:shadow-sm">
+              AI Picks
+            </TabsTrigger>
+          </TabsList>
+
+          {/* All Events Tab */}
+          <TabsContent value="all" className="space-y-4">
+            <div className="flex items-center justify-between mb-2">
+              <h2 className="text-sm font-black text-gray-400 uppercase tracking-widest flex items-center gap-2">
+                <Calendar className="w-4 h-4" /> {selectedVibe !== "all" ? `${selectedVibe.replace(/-/g, ' ')} Events` : "Upcoming Events"}
+              </h2>
+              <span className="text-xs font-bold text-gray-400 bg-gray-100 px-2 py-1 rounded-lg">
+                {filteredEvents.length} Result{filteredEvents.length !== 1 ? 's' : ''}
+              </span>
+            </div>
+            
+            {filteredEvents.length > 0 ? (
+              <div className="grid gap-4 sm:grid-cols-1">
+                {filteredEvents.map((e) => (
+                  <EventCard 
+                    key={e._id} 
+                    event={e} 
+                    userEmail={user?.email} 
+                    onRSVP={handleRSVP} 
+                    showAIInsights={true}
+                    onShowAttendees={(event) => setActiveEventAttendees(event)}
+                    onOpenChat={(event) => navigate(`/events/${event._id}/chat`)}
+                    onManageRequests={(event) => setActiveRequestsEvent(event)}
+                    onDelete={handleDeleteEvent}
+                    onEdit={handleEditEvent}
+                  />
+                ))}
               </div>
-              <p className="text-gray-500 font-bold">You haven't joined any events</p>
-              <p className="text-xs text-gray-400 mt-1">Find an event you like and click RSVP!</p>
+            ) : (
+              <div className="text-center py-20 bg-gray-50/50 rounded-[2rem] border-2 border-dashed border-gray-100">
+                <div className="w-16 h-16 bg-white rounded-2xl shadow-sm flex items-center justify-center mx-auto mb-4">
+                  {search ? <Search className="w-8 h-8 text-gray-300" /> : <Calendar className="w-8 h-8 text-gray-300" />}
+                </div>
+                <p className="text-gray-500 font-bold">No events found</p>
+                <p className="text-xs text-gray-400 mt-1">
+                  {search ? "Try a different search term" : "Try selecting another vibe"}
+                </p>
+              </div>
+            )}
+          </TabsContent>
+
+          {/* My Events Tab */}
+          <TabsContent value="my" className="space-y-4">
+            <div className="flex items-center justify-between mb-2">
+              <h2 className="text-sm font-black text-gray-400 uppercase tracking-widest flex items-center gap-2">
+                <MessageCircle className="w-4 h-4" /> My RSVPs & Events
+              </h2>
             </div>
-          )}
-        </TabsContent>
+            
+            {myEvents.length > 0 ? (
+              <div className="grid gap-4">
+                {myEvents.map((e) => (
+                  <EventCard 
+                    key={e._id} 
+                    event={e} 
+                    userEmail={user?.email} 
+                    onRSVP={handleRSVP} 
+                    showAIInsights={true}
+                    onShowAttendees={(event) => setActiveEventAttendees(event)}
+                    onOpenChat={(event) => navigate(`/events/${event._id}/chat`)}
+                    onManageRequests={(event) => setActiveRequestsEvent(event)}
+                    onDelete={handleDeleteEvent}
+                    onEdit={handleEditEvent}
+                  />
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-20 bg-gray-50/50 rounded-[2rem] border-2 border-dashed border-gray-100">
+                <div className="w-16 h-16 bg-white rounded-2xl shadow-sm flex items-center justify-center mx-auto mb-4">
+                  <MessageCircle className="w-8 h-8 text-gray-300" />
+                </div>
+                <p className="text-gray-500 font-bold">No matching RSVPs</p>
+                <p className="text-xs text-gray-400 mt-1">Check your search or filter criteria</p>
+              </div>
+            )}
+          </TabsContent>
 
         {/* AI Suggestions Tab */}
         <TabsContent value="suggestions" className="space-y-4">
@@ -298,5 +376,6 @@ export default function Events() {
         />
       )}
     </div>
-  );
+  </div>
+);
 }

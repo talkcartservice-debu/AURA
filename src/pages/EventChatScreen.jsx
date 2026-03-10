@@ -4,7 +4,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { eventService, profileService, uploadService } from "@/api/entities";
 import { useAuth } from "@/lib/AuthContext";
 import { useSocket } from "@/hooks/useSocket";
-import { X, Send, Loader2, User, AlertCircle, Camera, Image as ImageIcon, Smile, ArrowLeft, MoreVertical, Reply, Pencil, Trash2, CornerUpLeft, CheckCircle, Shield } from "lucide-react";
+import { X, Send, Loader2, User, AlertCircle, Camera, Image as ImageIcon, Smile, ArrowLeft, MoreVertical, Reply, Pencil, Trash2, CornerUpLeft, CheckCircle, Shield, Users, LogOut, CheckCircle2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import {
@@ -32,6 +32,7 @@ export default function EventChatScreen() {
   const [isUploading, setIsUploading] = useState(false);
   const [replyingTo, setReplyingTo] = useState(null);
   const [editingMessage, setEditingMessage] = useState(null);
+  const [showAttendees, setShowAttendees] = useState(false);
   const scrollRef = useRef(null);
   const fileInputRef = useRef(null);
   const textareaRef = useRef(null);
@@ -42,6 +43,13 @@ export default function EventChatScreen() {
     queryFn: () => eventService.list() 
   });
   const event = events?.find(e => e._id === eventId);
+
+  // Fetch Attendees
+  const { data: attendeesProfiles } = useQuery({
+    queryKey: ["eventAttendees", eventId],
+    queryFn: () => eventService.getAttendees(eventId),
+    enabled: !!eventId && showAttendees,
+  });
 
   // Fetch Messages
   const { data: messages, isLoading } = useQuery({
@@ -259,14 +267,86 @@ export default function EventChatScreen() {
             <h3 className="font-bold text-gray-900 leading-tight truncate">{event?.title || "Loading..."}</h3>
             <div className="flex items-center gap-1.5 mt-0.5">
               <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
-              <p className="text-[10px] text-gray-500 uppercase tracking-widest font-black">Live Event Chat</p>
+              <p className="text-[10px] text-gray-500 uppercase tracking-widest font-black">
+                {event?.rsvp_emails?.length || 0} Attending
+              </p>
             </div>
           </div>
         </div>
+        <div className="flex items-center gap-1">
+          <button 
+            onClick={() => setShowAttendees(!showAttendees)} 
+            className={`w-10 h-10 flex items-center justify-center rounded-xl transition-all active:scale-95 group ${showAttendees ? "bg-rose-100 text-rose-600" : "hover:bg-gray-100 text-gray-400"}`}
+          >
+            <Users className="w-5 h-5 group-hover:text-rose-600 transition-colors" />
+          </button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button className="w-10 h-10 flex items-center justify-center hover:bg-gray-100 rounded-xl transition-all active:scale-90 group">
+                <MoreVertical className="w-5 h-5 text-gray-400 group-hover:text-gray-900" />
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="rounded-2xl border-gray-100 shadow-xl overflow-hidden min-w-[160px]">
+              <DropdownMenuItem 
+                onClick={() => {
+                  if (confirm("Are you sure you want to leave this event?")) {
+                    eventService.rsvp(eventId).then(() => {
+                      qc.invalidateQueries(["events"]);
+                      toast.success("You have left the event");
+                      navigate("/events");
+                    });
+                  }
+                }}
+                className="gap-2 font-bold text-rose-600 focus:text-rose-600 focus:bg-rose-50 px-4 py-3"
+              >
+                <LogOut className="w-4 h-4" /> Leave Event
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
       </div>
 
-      {/* Messages */}
-      <div ref={scrollRef} className="flex-1 overflow-y-auto px-4 py-6 space-y-6 bg-[#FDFCFD] scroll-smooth">
+      <div className="flex-1 relative overflow-hidden flex flex-col">
+        {/* Attendees Overlay */}
+        {showAttendees && (
+          <div className="absolute inset-0 z-40 bg-white flex flex-col animate-in slide-in-from-right duration-300">
+            <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between bg-gray-50/50">
+              <h4 className="text-xs font-black text-gray-400 uppercase tracking-[0.2em]">Attendees</h4>
+              <button 
+                onClick={() => setShowAttendees(false)}
+                className="text-xs font-bold text-rose-500 hover:underline"
+              >
+                Back to chat
+              </button>
+            </div>
+            <div className="flex-1 overflow-y-auto p-6 space-y-4">
+              {attendeesProfiles ? (
+                attendeesProfiles.map(profile => (
+                  <div key={profile.user_email} className="flex items-center justify-between p-3 rounded-2xl hover:bg-gray-50 transition-colors border border-transparent hover:border-gray-100">
+                    <div className="flex items-center gap-3">
+                      <ProfileAvatar profile={profile} size="md" />
+                      <div>
+                        <p className="font-bold text-gray-900 text-sm">{profile.display_name}</p>
+                        <p className="text-[10px] text-gray-500 font-medium">@{profile.user_email.split('@')[0]}</p>
+                      </div>
+                    </div>
+                    {profile.user_email === event?.creator_email && (
+                      <span className="text-[9px] font-black bg-rose-100 text-rose-600 px-2 py-1 rounded-lg uppercase tracking-wider">Host</span>
+                    )}
+                  </div>
+                ))
+              ) : (
+                <div className="flex flex-col items-center justify-center h-full">
+                  <Loader2 className="w-6 h-6 animate-spin text-rose-500 mb-2" />
+                  <p className="text-xs font-bold text-gray-400 uppercase tracking-widest">Loading attendees...</p>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Messages */}
+        <div ref={scrollRef} className="flex-1 overflow-y-auto px-4 py-6 space-y-6 bg-[#FDFCFD] scroll-smooth">
         {isLoading ? (
           <div className="flex flex-col items-center justify-center h-full gap-3">
             <Loader2 className="w-6 h-6 animate-spin text-rose-500" />
@@ -405,6 +485,7 @@ export default function EventChatScreen() {
           </div>
         </div>
       )}
+    </div>
 
       {/* Footer */}
       <div className="bg-white border-t border-gray-100 pb-safe-offset-4">

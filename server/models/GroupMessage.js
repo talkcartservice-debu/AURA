@@ -6,6 +6,8 @@ const groupMessageSchema = new mongoose.Schema(
     sender_email: { type: String, required: true, index: true },
     content: { type: String, required: false },
     image_url: { type: String, default: null },
+    reply_to: { type: mongoose.Schema.Types.ObjectId, ref: "GroupMessage", default: null },
+    edited: { type: Boolean, default: false },
     deleted: { type: Boolean, default: false },
   },
   { timestamps: true }

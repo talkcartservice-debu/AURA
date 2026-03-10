@@ -55,6 +55,9 @@ export const groupService = {
   rejectRequest: (id, user_email) => api.post(`/groups/${id}/requests/reject`, { user_email }).then((r) => r.data),
   getMessages: (id) => api.get(`/groups/${id}/messages`).then((r) => r.data),
   sendMessage: (id, data) => api.post(`/groups/${id}/messages`, data).then((r) => r.data),
+  getMembers: (id) => api.get(`/groups/${id}/members`).then((r) => r.data),
+  deleteMessage: (groupId, messageId) => api.delete(`/groups/${groupId}/messages/${messageId}`).then((r) => r.data),
+  editMessage: (groupId, messageId, content) => api.put(`/groups/${groupId}/messages/${messageId}`, { content }).then((r) => r.data),
   delete: (id) => api.delete(`/groups/${id}`).then((r) => r.data),
   update: (id, data) => api.put(`/groups/${id}`, data).then((r) => r.data),
 };

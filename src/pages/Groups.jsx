@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { groupService, eventService } from "@/api/entities";
@@ -10,10 +10,12 @@ import JoinRequestsModal from "@/components/groups/JoinRequestsModal";
 import CreateEventModal from "@/components/events/CreateEventModal";
 import AIRelationshipCoach from "@/components/coach/AIRelationshipCoach";
 import { Button } from "@/components/ui/button";
-import { Plus, Loader2, Users, Calendar, MessageCircle } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Plus, Loader2, Users, Calendar, MessageCircle, Search, Filter, Shield, Heart } from "lucide-react";
 import { toast } from "sonner";
 
 const CATEGORY_EMOJI = { outdoor: "🏕️", arts: "🎨", food: "🍕", sports: "⚽", books: "📚", music: "🎵", travel: "✈️", fitness: "💪", social: "🎉", other: "✨" };
+const CATEGORIES = Object.keys(CATEGORY_EMOJI);
 
 export default function Groups() {
   const navigate = useNavigate();
@@ -25,10 +27,27 @@ export default function Groups() {
   const [activeChatGroup, setActiveChatGroup] = useState(null);
   const [activeRequestsGroup, setActiveRequestsGroup] = useState(null);
   
+  const [search, setSearch] = useState("");
+  const [selectedCategory, setSelectedCategory] = useState("all");
+  
   const { data: groups, isLoading } = useQuery({ 
     queryKey: ["groups"], 
     queryFn: groupService.list 
   });
+
+  const filteredGroups = useMemo(() => {
+    if (!groups) return [];
+    return groups.filter(g => {
+      const matchesSearch = !search || 
+        g.name.toLowerCase().includes(search.toLowerCase()) || 
+        g.description?.toLowerCase().includes(search.toLowerCase()) ||
+        g.tags?.some(t => t.toLowerCase().includes(search.toLowerCase()));
+      
+      const matchesCategory = selectedCategory === "all" || g.category === selectedCategory;
+      
+      return matchesSearch && matchesCategory;
+    });
+  }, [groups, search, selectedCategory]);
 
   async function handleCreateGroup(data) {
     try {
@@ -153,40 +172,77 @@ export default function Groups() {
         <AIRelationshipCoach />
       </div>
 
-      <div className="space-y-4">
-        <div className="flex items-center justify-between">
-          <h2 className="text-sm font-black text-gray-400 uppercase tracking-widest flex items-center gap-2">
-            <Users className="w-4 h-4" /> Available Groups
-          </h2>
-          <span className="text-xs font-bold text-gray-400 bg-gray-100 px-2 py-1 rounded-lg">
-            {groups?.length || 0} Total
-          </span>
+      <div className="space-y-6">
+        {/* Filters & Search */}
+        <div className="space-y-4">
+          <div className="relative group">
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 group-focus-within:text-rose-500 transition-colors" />
+            <Input 
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Search groups by name, description or tags..." 
+              className="pl-11 h-12 rounded-2xl bg-white border-gray-100 focus:border-rose-300 focus:ring-rose-200 shadow-sm"
+            />
+          </div>
+          
+          <div className="flex flex-wrap gap-2 pb-2 overflow-x-auto scrollbar-hide">
+            <button
+              onClick={() => setSelectedCategory("all")}
+              className={`px-4 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition-all border-2 ${selectedCategory === "all" ? "bg-rose-500 border-rose-500 text-white shadow-md shadow-rose-100" : "bg-white border-gray-100 text-gray-500 hover:border-rose-200"}`}
+            >
+              All Groups
+            </button>
+            {CATEGORIES.map(cat => (
+              <button
+                key={cat}
+                onClick={() => setSelectedCategory(cat)}
+                className={`px-4 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition-all border-2 flex items-center gap-2 ${selectedCategory === cat ? "bg-rose-500 border-rose-500 text-white shadow-md shadow-rose-100" : "bg-white border-gray-100 text-gray-500 hover:border-rose-200"}`}
+              >
+                <span>{CATEGORY_EMOJI[cat]}</span>
+                <span className="capitalize">{cat}</span>
+              </button>
+            ))}
+          </div>
         </div>
 
-        <div className="space-y-3">
-          {(groups || []).map((g) => (
-            <GroupCard 
-              key={g._id} 
-              group={g} 
-              userEmail={user?.email} 
-              onJoin={handleJoin} 
-              onLeave={handleLeave} 
-              onCreateEvent={(groupId) => setShowEvent(groupId)} 
-              onOpenChat={(group) => setActiveChatGroup(group)}
-              onManageRequests={(group) => setActiveRequestsGroup(group)}
-              onDelete={handleDeleteGroup}
-              onEdit={handleEditGroup}
-            />
-          ))}
-          {(!groups || groups.length === 0) && (
-            <div className="text-center py-20 bg-gray-50/50 rounded-[2rem] border-2 border-dashed border-gray-100">
-              <div className="w-16 h-16 bg-white rounded-2xl shadow-sm flex items-center justify-center mx-auto mb-4">
-                <Users className="w-8 h-8 text-gray-300" />
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <h2 className="text-sm font-black text-gray-400 uppercase tracking-widest flex items-center gap-2">
+              <Users className="w-4 h-4" /> 
+              {selectedCategory !== "all" ? `${selectedCategory} Groups` : "Available Groups"}
+            </h2>
+            <span className="text-xs font-bold text-gray-400 bg-gray-100 px-2 py-1 rounded-lg">
+              {filteredGroups.length} Result{filteredGroups.length !== 1 ? 's' : ''}
+            </span>
+          </div>
+
+          <div className="space-y-3">
+            {filteredGroups.map((g) => (
+              <GroupCard 
+                key={g._id} 
+                group={g} 
+                userEmail={user?.email} 
+                onJoin={handleJoin} 
+                onLeave={handleLeave} 
+                onCreateEvent={(groupId) => setShowEvent(groupId)} 
+                onOpenChat={(group) => setActiveChatGroup(group)}
+                onManageRequests={(group) => setActiveRequestsGroup(group)}
+                onDelete={handleDeleteGroup}
+                onEdit={handleEditGroup}
+              />
+            ))}
+            {filteredGroups.length === 0 && (
+              <div className="text-center py-20 bg-gray-50/50 rounded-[2rem] border-2 border-dashed border-gray-100">
+                <div className="w-16 h-16 bg-white rounded-2xl shadow-sm flex items-center justify-center mx-auto mb-4">
+                  {search ? <Search className="w-8 h-8 text-gray-300" /> : <Users className="w-8 h-8 text-gray-300" />}
+                </div>
+                <p className="text-gray-500 font-bold">No groups found</p>
+                <p className="text-xs text-gray-400 mt-1">
+                  {search ? "Try a different search term" : "Try selecting another category"}
+                </p>
               </div>
-              <p className="text-gray-500 font-bold">No groups found</p>
-              <p className="text-xs text-gray-400 mt-1">Start a community by creating a group!</p>
-            </div>
-          )}
+            )}
+          </div>
         </div>
       </div>
 

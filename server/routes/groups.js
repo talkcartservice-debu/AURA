@@ -1,6 +1,7 @@
 import { Router } from "express";
 import auth from "../middleware/auth.js";
 import Group from "../models/Group.js";
+import UserProfile from "../models/UserProfile.js";
 import GroupMessage from "../models/GroupMessage.js";
 import { emitToUsers } from "../signaling.js";
 
@@ -50,7 +51,7 @@ router.get("/:id/messages", auth, async (req, res) => {
 router.post("/:id/messages", auth, async (req, res) => {
   try {
     console.log(`POST /groups/${req.params.id}/messages - User: ${req.user.email}`);
-    const { content, image_url } = req.body;
+    const { content, image_url, reply_to } = req.body;
     
     if (!content && !image_url) {
       return res.status(400).json({ error: "Content or image_url is required" });
@@ -76,6 +77,7 @@ router.post("/:id/messages", auth, async (req, res) => {
       sender_email: req.user.email,
       content,
       image_url,
+      reply_to: reply_to || null,
     });
 
     // Notify all members except sender
@@ -92,6 +94,65 @@ router.post("/:id/messages", auth, async (req, res) => {
     res.status(201).json(message);
   } catch (err) {
     console.error(`Error in POST /groups/${req.params.id}/messages:`, err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.put("/:id/messages/:messageId", auth, async (req, res) => {
+  try {
+    const { content } = req.body;
+    const message = await GroupMessage.findOne({ _id: req.params.messageId, group_id: req.params.id });
+    
+    if (!message) return res.status(404).json({ error: "Message not found" });
+    if (message.sender_email !== req.user.email) {
+      return res.status(403).json({ error: "Can only edit your own messages" });
+    }
+
+    message.content = content;
+    message.edited = true;
+    await message.save();
+
+    // Notify all members
+    const group = await Group.findById(req.params.id);
+    if (group) {
+      const otherMembers = group.member_emails.filter(e => e !== req.user.email);
+      emitToUsers(otherMembers, "group_message_edited", {
+        group_id: group._id.toString(),
+        message_id: message._id.toString(),
+        content
+      });
+    }
+
+    res.json(message);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.delete("/:id/messages/:messageId", auth, async (req, res) => {
+  try {
+    const message = await GroupMessage.findOne({ _id: req.params.messageId, group_id: req.params.id });
+    
+    if (!message) return res.status(404).json({ error: "Message not found" });
+    if (message.sender_email !== req.user.email) {
+      return res.status(403).json({ error: "Can only delete your own messages" });
+    }
+
+    message.deleted = true;
+    await message.save();
+
+    // Notify all members
+    const group = await Group.findById(req.params.id);
+    if (group) {
+      const otherMembers = group.member_emails.filter(e => e !== req.user.email);
+      emitToUsers(otherMembers, "group_message_deleted", {
+        group_id: group._id.toString(),
+        message_id: message._id.toString()
+      });
+    }
+
+    res.json({ success: true });
+  } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
@@ -114,6 +175,25 @@ router.post("/", auth, async (req, res) => {
       member_emails: [req.user.email],
     });
     res.status(201).json(group);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.get("/:id/members", auth, async (req, res) => {
+  try {
+    const group = await Group.findById(req.params.id);
+    if (!group) return res.status(404).json({ error: "Group not found" });
+
+    if (!group.member_emails.includes(req.user.email)) {
+      return res.status(403).json({ error: "Must be a member to see member list" });
+    }
+
+    const profiles = await UserProfile.find({
+      user_email: { $in: group.member_emails }
+    }).select("display_name photos user_email age bio location");
+
+    res.json(profiles);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

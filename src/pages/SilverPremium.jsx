@@ -50,8 +50,8 @@ export default function SilverPremium() {
       window.location.href = authorization_url;
     } catch (err) {
       console.error("Initialize error:", err);
-      const msg = err.response?.data?.error || "Failed to initialize payment. Please try again.";
-      toast.error(msg);
+      const msg = err.response?.data?.error || err.response?.data?.message || "Failed to initialize payment. Please check your internet connection or Paystack configuration.";
+      toast.error(msg, { duration: 5000 });
       setLoading(false);
     }
   }
