@@ -222,13 +222,14 @@ export const relationshipCoachService = {
 export const adminService = {
   login: (data) => api.post("/admin/login", data).then((r) => r.data),
   getStats: () => api.get("/admin/stats").then((r) => r.data),
-  getUsers: () => api.get("/admin/users").then((r) => r.data),
+  getUsers: (params) => api.get("/admin/users", { params }).then((r) => r.data),
   updateUserRole: (id, role) => api.patch(`/admin/users/${id}/role`, { role }).then((r) => r.data),
   updateUserStatus: (id, status) => api.patch(`/admin/users/${id}/status`, { status }).then((r) => r.data),
   warnUser: (id, reason) => api.post(`/admin/users/${id}/warn`, { reason }).then((r) => r.data),
   forceVerification: (id) => api.post(`/admin/users/${id}/force-verification`).then((r) => r.data),
   grantPremium: (id) => api.post(`/admin/users/${id}/grant-premium`).then((r) => r.data),
-  getLogs: () => api.get("/admin/logs").then((r) => r.data),
+  bulkUserAction: (data) => api.post("/admin/users/bulk-action", data).then((r) => r.data),
+  getLogs: (params) => api.get("/admin/logs", { params }).then((r) => r.data),
   getReports: () => api.get("/admin/reports").then((r) => r.data),
   updateReportStatus: (id, status) => api.patch(`/admin/reports/${id}`, { status }).then((r) => r.data),
   getVerifications: () => api.get("/admin/verifications").then((r) => r.data),
@@ -243,4 +244,5 @@ export const adminService = {
   getEventMetrics: (id) => api.get(`/admin/events/${id}/metrics`).then((r) => r.data),
   getSettings: () => api.get("/admin/settings").then((r) => r.data),
   updateSetting: (key, value) => api.patch(`/admin/settings/${key}`, { value }).then((r) => r.data),
+  getSafetyStats: () => api.get("/admin/safety-stats").then((r) => r.data),
 };

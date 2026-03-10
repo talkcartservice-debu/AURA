@@ -55,6 +55,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Checkbox } from "@/components/ui/checkbox";
 import { 
   BarChart, 
   Bar, 
@@ -74,9 +75,15 @@ const AdminDashboard = () => {
   const [activeTab, setActiveTab] = useState("overview");
   const [stats, setStats] = useState(null);
   const [users, setUsers] = useState([]);
+  const [totalUsers, setTotalUsers] = useState(0);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [selectedUserIds, setSelectedUserIds] = useState([]);
   const [logs, setLogs] = useState([]);
+  const [logFilters, setLogFilters] = useState({ adminEmail: "", action: "" });
   const [reports, setReports] = useState([]);
   const [verifications, setVerifications] = useState([]);
+  const [safetyStats, setSafetyStats] = useState(null);
   const [revenueData, setRevenueData] = useState(null);
   const [events, setEvents] = useState([]);
   const [settings, setSettings] = useState([]);
@@ -104,15 +111,56 @@ const AdminDashboard = () => {
     fetchData();
   }, []);
 
+  useEffect(() => {
+    if (activeTab === 'users') {
+      fetchUsers();
+    }
+    if (activeTab === 'safety') {
+      fetchSafetyStats();
+    }
+    if (activeTab === 'logs') {
+      fetchLogs();
+    }
+  }, [activeTab, currentPage, searchTerm, logFilters]);
+
+  const fetchLogs = async () => {
+    try {
+      const data = await adminService.getLogs(logFilters);
+      setLogs(data);
+    } catch (err) {
+      console.error("Failed to fetch logs", err);
+    }
+  };
+
+  const fetchSafetyStats = async () => {
+    try {
+      const data = await adminService.getSafetyStats();
+      setSafetyStats(data);
+    } catch (err) {
+      console.error("Failed to fetch safety stats", err);
+    }
+  };
+
+  const fetchUsers = async () => {
+    try {
+      const data = await adminService.getUsers({ page: currentPage, search: searchTerm });
+      setUsers(data.users);
+      setTotalUsers(data.total);
+      setTotalPages(data.pages);
+    } catch (err) {
+      console.error("Failed to fetch users", err);
+    }
+  };
+
   const fetchData = async () => {
     try {
       setLoading(true);
-      const [statsData, usersData] = await Promise.all([
-        adminService.getStats(),
-        adminService.getUsers()
-      ]);
+      const statsData = await adminService.getStats();
       setStats(statsData);
-      setUsers(usersData);
+      
+      if (activeTab === 'users') {
+        await fetchUsers();
+      }
       
       if (user?.role === 'super_admin') {
         const logsData = await adminService.getLogs();
@@ -146,11 +194,6 @@ const AdminDashboard = () => {
   if (!user || !["super_admin", "admin", "moderator", "support"].includes(user.role)) {
     return <Navigate to="/" replace />;
   }
-
-  const filteredUsers = users.filter(u => 
-    u.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    u.username?.toLowerCase().includes(searchTerm.toLowerCase())
-  );
 
   const handleUpdateRole = async (userId, newRole) => {
     try {
@@ -225,6 +268,20 @@ const AdminDashboard = () => {
       fetchData();
     } catch (err) {
       console.error("Failed to update status", err);
+    }
+  };
+
+  const handleBulkAction = async (action, value) => {
+    if (selectedUserIds.length === 0) return;
+    if (!window.confirm(`Are you sure you want to perform ${action}: ${value} on ${selectedUserIds.length} users?`)) return;
+    try {
+      await adminService.bulkUserAction({ userIds: selectedUserIds, action, value });
+      toast.success("Bulk action completed");
+      setSelectedUserIds([]);
+      fetchUsers();
+    } catch (err) {
+      console.error("Bulk action failed", err);
+      toast.error(err.response?.data?.error || "Bulk action failed");
     }
   };
 
@@ -642,121 +699,239 @@ const AdminDashboard = () => {
           )}
 
           {activeTab === "users" && (
-            <Card className="border-gray-200">
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-7">
-                <CardTitle className="text-xl font-bold">User Management</CardTitle>
-                <div className="relative w-72">
-                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-                  <Input 
-                    placeholder="Search users..." 
-                    className="pl-10 rounded-xl"
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                  />
-                </div>
-              </CardHeader>
-              <CardContent>
-                {loading ? (
-                  <div className="space-y-4">
-                    {[...Array(5)].map((_, i) => (
-                      <Skeleton key={i} className="h-16 w-full rounded-xl" />
-                    ))}
+            <div className="space-y-4">
+              {selectedUserIds.length > 0 && (
+                <Card className="border-rose-200 bg-rose-50 animate-in fade-in slide-in-from-top-4">
+                  <CardContent className="p-4 flex items-center justify-between">
+                    <div className="flex items-center gap-4">
+                      <span className="text-sm font-bold text-rose-700">
+                        {selectedUserIds.length} users selected
+                      </span>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button size="sm" className="bg-rose-500 hover:bg-rose-600 border-0 rounded-xl">
+                            Apply Bulk Action
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="start" className="w-48 rounded-xl">
+                          <DropdownMenuLabel>Status Actions</DropdownMenuLabel>
+                          <DropdownMenuItem onClick={() => handleBulkAction('status', 'active')}>Activate Selected</DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => handleBulkAction('status', 'suspended')}>Suspend Selected</DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => handleBulkAction('status', 'banned')} className="text-rose-600 font-bold">Ban Selected</DropdownMenuItem>
+                          <DropdownMenuSeparator />
+                          <DropdownMenuLabel>Role Actions</DropdownMenuLabel>
+                          <DropdownMenuItem onClick={() => handleBulkAction('role', 'moderator')}>Make Moderators</DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => handleBulkAction('role', 'user')}>Revert to Users</DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </div>
+                    <Button 
+                      variant="ghost" 
+                      size="sm" 
+                      className="text-gray-500 hover:text-gray-700"
+                      onClick={() => setSelectedUserIds([])}
+                    >
+                      Clear Selection
+                    </Button>
+                  </CardContent>
+                </Card>
+              )}
+
+              <Card className="border-gray-200">
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-7">
+                  <CardTitle className="text-xl font-bold">User Management</CardTitle>
+                  <div className="flex items-center gap-4">
+                    <div className="relative">
+                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                      <Input 
+                        placeholder="Search email or username..." 
+                        className="pl-10 w-64 rounded-xl border-gray-200"
+                        value={searchTerm}
+                        onChange={(e) => {
+                          setSearchTerm(e.target.value);
+                          setCurrentPage(1);
+                        }}
+                      />
+                    </div>
+                    <Button variant="outline" className="rounded-xl border-gray-200" onClick={fetchUsers}>
+                      Refresh
+                    </Button>
                   </div>
-                ) : (
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>User</TableHead>
-                        <TableHead>Email</TableHead>
-                        <TableHead>Role</TableHead>
-                        <TableHead>Status</TableHead>
-                        <TableHead>Risk</TableHead>
-                        <TableHead className="text-right">Actions</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {filteredUsers.map((u) => (
-                        <TableRow key={u._id}>
-                          <TableCell className="font-medium">
-                            <div className="flex items-center gap-3">
-                              <div className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center font-bold text-gray-600">
-                                {u.username?.charAt(0).toUpperCase()}
-                              </div>
-                              {u.username}
-                            </div>
-                          </TableCell>
-                          <TableCell>{u.email}</TableCell>
-                          <TableCell>
-                            <Badge variant="outline" className="capitalize">{u.role}</Badge>
-                          </TableCell>
-                          <TableCell>
-                            <Badge className={
-                              u.status === 'active' ? 'bg-green-100 text-green-700 hover:bg-green-100 border-0' :
-                              u.status === 'suspended' ? 'bg-amber-100 text-amber-700 hover:bg-amber-100 border-0' :
-                              'bg-rose-100 text-rose-700 hover:bg-rose-100 border-0'
-                            }>
-                              {u.status}
-                            </Badge>
-                          </TableCell>
-                          <TableCell>
-                            <div className="flex items-center gap-2">
-                              <div className={`w-2 h-2 rounded-full ${u.risk_score > 50 ? 'bg-rose-500' : 'bg-green-500'}`} />
-                              {u.risk_score}
-                            </div>
-                          </TableCell>
-                          <TableCell className="text-right">
-                            <DropdownMenu>
-                              <DropdownMenuTrigger asChild>
-                                <Button variant="ghost" className="h-8 w-8 p-0">
-                                  <MoreVertical className="h-4 w-4" />
-                                </Button>
-                              </DropdownMenuTrigger>
-                              <DropdownMenuContent align="end" className="w-48 rounded-xl">
-                                <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                                <DropdownMenuItem onClick={() => {
-                                  setSelectedUser(u);
-                                  setIsUserModalOpen(true);
-                                }}>
-                                  View Full Profile
-                                </DropdownMenuItem>
-                                <DropdownMenuItem onClick={() => handleWarnUser(u._id)}>
-                                  Warn User
-                                </DropdownMenuItem>
-                                <DropdownMenuItem onClick={() => handleForceVerification(u._id)}>
-                                  Force Re-verification
-                                </DropdownMenuItem>
-                                <DropdownMenuItem onClick={() => handleGrantPremium(u._id)}>
-                                  Grant Premium
-                                </DropdownMenuItem>
-                                <DropdownMenuItem onClick={() => handleExtendPremium(u._id)}>
-                                  Extend Premium
-                                </DropdownMenuItem>
-                                {user?.role === 'super_admin' && (
-                                  <>
-                                    <DropdownMenuSeparator />
-                                    <DropdownMenuItem onClick={() => handleUpdateStatus(u._id, u.status === 'suspended' ? 'active' : 'suspended')}>
-                                      {u.status === 'suspended' ? 'Unsuspend Account' : 'Suspend Account'}
-                                    </DropdownMenuItem>
-                                    <DropdownMenuItem onClick={() => handleUpdateStatus(u._id, u.status === 'banned' ? 'active' : 'banned')} className="text-rose-600">
-                                      {u.status === 'banned' ? 'Unban Account' : 'Ban Permanently'}
-                                    </DropdownMenuItem>
-                                  </>
-                                )}
-                                <DropdownMenuSeparator />
-                                <DropdownMenuLabel>Change Role</DropdownMenuLabel>
-                                <DropdownMenuItem onClick={() => handleUpdateRole(u._id, 'admin')}>Make Admin</DropdownMenuItem>
-                                <DropdownMenuItem onClick={() => handleUpdateRole(u._id, 'moderator')}>Make Moderator</DropdownMenuItem>
-                                <DropdownMenuItem onClick={() => handleUpdateRole(u._id, 'user')}>Make User</DropdownMenuItem>
-                              </DropdownMenuContent>
-                            </DropdownMenu>
-                          </TableCell>
-                        </TableRow>
+                </CardHeader>
+                <CardContent>
+                  {loading ? (
+                    <div className="space-y-4">
+                      {[...Array(5)].map((_, i) => (
+                        <Skeleton key={i} className="h-16 w-full rounded-xl" />
                       ))}
-                    </TableBody>
-                  </Table>
-                )}
-              </CardContent>
-            </Card>
+                    </div>
+                  ) : (
+                    <>
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead className="w-[50px]">
+                              <Checkbox 
+                                checked={users.length > 0 && selectedUserIds.length === users.length}
+                                onCheckedChange={(checked) => {
+                                  if (checked) setSelectedUserIds(users.map(u => u._id));
+                                  else setSelectedUserIds([]);
+                                }}
+                                className="rounded-md border-gray-300 data-[state=checked]:bg-rose-500 data-[state=checked]:border-rose-500"
+                              />
+                            </TableHead>
+                            <TableHead>User</TableHead>
+                            <TableHead>Email</TableHead>
+                            <TableHead>Role</TableHead>
+                            <TableHead>Status</TableHead>
+                            <TableHead>Risk</TableHead>
+                            <TableHead className="text-right">Actions</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {users.map((u) => (
+                            <TableRow key={u._id} className={selectedUserIds.includes(u._id) ? 'bg-rose-50/30' : ''}>
+                              <TableCell>
+                                <Checkbox 
+                                  checked={selectedUserIds.includes(u._id)}
+                                  onCheckedChange={(checked) => {
+                                    if (checked) setSelectedUserIds(prev => [...prev, u._id]);
+                                    else setSelectedUserIds(prev => prev.filter(id => id !== u._id));
+                                  }}
+                                  className="rounded-md border-gray-300 data-[state=checked]:bg-rose-500 data-[state=checked]:border-rose-500"
+                                />
+                              </TableCell>
+                              <TableCell className="font-medium">
+                                <div className="flex items-center gap-3">
+                                  <div className="w-8 h-8 rounded-full bg-rose-100 flex items-center justify-center text-rose-600 font-bold text-xs uppercase">
+                                    {u.username?.[0] || u.email[0]}
+                                  </div>
+                                  <div className="text-sm font-bold">{u.username || 'Anonymous'}</div>
+                                </div>
+                              </TableCell>
+                              <TableCell className="text-sm">{u.email}</TableCell>
+                              <TableCell>
+                                <Badge variant="outline" className="capitalize text-[10px]">{u.role}</Badge>
+                              </TableCell>
+                              <TableCell>
+                                <Badge className={
+                                  u.status === 'active' ? 'bg-green-100 text-green-700 hover:bg-green-100 border-0' :
+                                  u.status === 'suspended' ? 'bg-amber-100 text-amber-700 hover:bg-amber-100 border-0' :
+                                  'bg-rose-100 text-rose-700 hover:bg-rose-100 border-0'
+                                }>
+                                  {u.status}
+                                </Badge>
+                              </TableCell>
+                              <TableCell>
+                                <div className="flex items-center gap-2">
+                                  <div className={`w-2 h-2 rounded-full ${u.risk_score > 50 ? 'bg-rose-500' : 'bg-green-500'}`} />
+                                  <span className="text-xs font-bold">{u.risk_score}</span>
+                                </div>
+                              </TableCell>
+                              <TableCell className="text-right">
+                                <DropdownMenu>
+                                  <DropdownMenuTrigger asChild>
+                                    <Button variant="ghost" className="h-8 w-8 p-0">
+                                      <MoreVertical className="h-4 w-4" />
+                                    </Button>
+                                  </DropdownMenuTrigger>
+                                  <DropdownMenuContent align="end" className="w-48 rounded-xl">
+                                    <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                                    <DropdownMenuItem onClick={() => {
+                                      setSelectedUser(u);
+                                      setIsUserModalOpen(true);
+                                    }}>
+                                      View Full Profile
+                                    </DropdownMenuItem>
+                                    <DropdownMenuItem onClick={() => handleWarnUser(u._id)}>
+                                      Warn User
+                                    </DropdownMenuItem>
+                                    <DropdownMenuItem onClick={() => handleForceVerification(u._id)}>
+                                      Force Re-verification
+                                    </DropdownMenuItem>
+                                    <DropdownMenuItem onClick={() => handleGrantPremium(u._id)}>
+                                      Grant Premium
+                                    </DropdownMenuItem>
+                                    <DropdownMenuItem onClick={() => handleExtendPremium(u._id)}>
+                                      Extend Premium
+                                    </DropdownMenuItem>
+                                    {user?.role === 'super_admin' && (
+                                      <>
+                                        <DropdownMenuSeparator />
+                                        <DropdownMenuItem onClick={() => handleUpdateStatus(u._id, u.status === 'suspended' ? 'active' : 'suspended')}>
+                                          {u.status === 'suspended' ? 'Unsuspend Account' : 'Suspend Account'}
+                                        </DropdownMenuItem>
+                                        <DropdownMenuItem onClick={() => handleUpdateStatus(u._id, u.status === 'banned' ? 'active' : 'banned')} className="text-rose-600">
+                                          {u.status === 'banned' ? 'Unban Account' : 'Ban Permanently'}
+                                        </DropdownMenuItem>
+                                      </>
+                                    )}
+                                    <DropdownMenuSeparator />
+                                    <DropdownMenuLabel>Change Role</DropdownMenuLabel>
+                                    <DropdownMenuItem onClick={() => handleUpdateRole(u._id, 'admin')}>Make Admin</DropdownMenuItem>
+                                    <DropdownMenuItem onClick={() => handleUpdateRole(u._id, 'moderator')}>Make Moderator</DropdownMenuItem>
+                                    <DropdownMenuItem onClick={() => handleUpdateRole(u._id, 'user')}>Make User</DropdownMenuItem>
+                                  </DropdownMenuContent>
+                                </DropdownMenu>
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                      {/* Pagination UI already added in previous step, ensuring it still works with the new structure */}
+                      {totalPages > 1 && (
+                        <div className="flex items-center justify-between pt-6">
+                          <p className="text-sm text-gray-500">
+                            Showing {(currentPage - 1) * 50 + 1} to {Math.min(currentPage * 50, totalUsers)} of {totalUsers} users
+                          </p>
+                          <div className="flex items-center gap-2">
+                            <Button 
+                              variant="outline" 
+                              size="sm" 
+                              disabled={currentPage === 1}
+                              onClick={() => setCurrentPage(prev => prev - 1)}
+                              className="rounded-lg h-8 px-4"
+                            >
+                              Previous
+                            </Button>
+                            <div className="flex items-center gap-1">
+                              {[...Array(Math.min(5, totalPages))].map((_, i) => {
+                                let pageNum;
+                                if (totalPages <= 5) pageNum = i + 1;
+                                else if (currentPage <= 3) pageNum = i + 1;
+                                else if (currentPage >= totalPages - 2) pageNum = totalPages - 4 + i;
+                                else pageNum = currentPage - 2 + i;
+                                
+                                return (
+                                  <Button
+                                    key={pageNum}
+                                    variant={currentPage === pageNum ? "default" : "outline"}
+                                    size="sm"
+                                    onClick={() => setCurrentPage(pageNum)}
+                                    className={`w-8 h-8 rounded-lg p-0 ${currentPage === pageNum ? 'bg-rose-500 hover:bg-rose-600 border-rose-500' : ''}`}
+                                  >
+                                    {pageNum}
+                                  </Button>
+                                );
+                              })}
+                            </div>
+                            <Button 
+                              variant="outline" 
+                              size="sm" 
+                              disabled={currentPage === totalPages}
+                              onClick={() => setCurrentPage(prev => prev + 1)}
+                              className="rounded-lg h-8 px-4"
+                            >
+                              Next
+                            </Button>
+                          </div>
+                        </div>
+                      )}
+                    </>
+                  )}
+                </CardContent>
+              </Card>
+            </div>
           )}
 
           {activeTab === "moderation" && (
@@ -926,12 +1101,12 @@ const AdminDashboard = () => {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
                   <div className="p-6 bg-rose-50 rounded-2xl border border-rose-100">
                     <h4 className="font-bold text-rose-700 mb-2">High Risk Users</h4>
-                    <p className="text-3xl font-bold text-rose-900">{users.filter(u => u.risk_score > 50).length}</p>
+                    <p className="text-3xl font-bold text-rose-900">{safetyStats?.highRiskCount || 0}</p>
                   </div>
                   <div className="p-6 bg-green-50 rounded-2xl border border-green-100">
                     <h4 className="font-bold text-green-700 mb-2">Verified Ratio</h4>
                     <p className="text-3xl font-bold text-green-900">
-                      {Math.round((users.filter(u => u.profile?.is_verified).length / users.length) * 100 || 0)}%
+                      {Math.round(safetyStats?.verifiedRatio || 0)}%
                     </p>
                   </div>
                 </div>
@@ -947,18 +1122,18 @@ const AdminDashboard = () => {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {users.sort((a,b) => b.risk_score - a.risk_score).slice(0, 10).map((u) => (
-                      <TableRow key={u._id}>
+                    {safetyStats?.topRiskUsers?.map((u) => (
+                      <TableRow key={u.email}>
                         <TableCell className="text-sm font-medium">{u.email}</TableCell>
                         <TableCell>
                           <div className="flex items-center gap-2">
                             <div className="flex-1 h-2 bg-gray-100 rounded-full overflow-hidden w-24">
                               <div 
-                                className={`h-full ${u.risk_score > 70 ? 'bg-rose-500' : u.risk_score > 30 ? 'bg-amber-500' : 'bg-green-500'}`}
-                                style={{ width: `${u.risk_score}%` }}
+                                className={`h-full ${u.riskScore > 70 ? 'bg-rose-500' : u.riskScore > 30 ? 'bg-amber-500' : 'bg-green-500'}`}
+                                style={{ width: `${u.riskScore}%` }}
                               />
                             </div>
-                            <span className="text-xs font-bold">{u.risk_score}</span>
+                            <span className="text-xs font-bold">{u.riskScore}</span>
                           </div>
                         </TableCell>
                         <TableCell>
@@ -966,11 +1141,11 @@ const AdminDashboard = () => {
                         </TableCell>
                         <TableCell>
                           <Badge className={
-                            u.risk_score > 70 ? 'bg-rose-100 text-rose-700' :
-                            u.risk_score > 30 ? 'bg-amber-100 text-amber-700' :
+                            u.riskScore > 70 ? 'bg-rose-100 text-rose-700' :
+                            u.riskScore > 30 ? 'bg-amber-100 text-amber-700' :
                             'bg-green-100 text-green-700'
                           }>
-                            {u.risk_score > 70 ? 'Critical' : u.risk_score > 30 ? 'Warning' : 'Low'}
+                            {u.riskScore > 70 ? 'Critical' : u.riskScore > 30 ? 'Warning' : 'Low'}
                           </Badge>
                         </TableCell>
                         <TableCell className="text-right">
@@ -978,9 +1153,16 @@ const AdminDashboard = () => {
                             variant="ghost" 
                             size="sm" 
                             className="text-rose-600 hover:bg-rose-50 rounded-xl"
-                            onClick={() => {
-                              setSelectedUser(u);
-                              setIsUserModalOpen(true);
+                            onClick={async () => {
+                              try {
+                                const userData = await adminService.getUsers({ search: u.email, limit: 1 });
+                                if (userData.users.length > 0) {
+                                  setSelectedUser(userData.users[0]);
+                                  setIsUserModalOpen(true);
+                                }
+                              } catch (err) {
+                                console.error("Failed to load user details", err);
+                              }
                             }}
                           >
                             Review
@@ -1185,8 +1367,36 @@ const AdminDashboard = () => {
 
           {activeTab === "logs" && (
             <Card className="border-gray-200">
-              <CardHeader>
-                <CardTitle className="text-xl font-bold">System Logs</CardTitle>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-7">
+                <CardTitle className="text-xl font-bold">System Audit Logs</CardTitle>
+                <div className="flex items-center gap-4">
+                  <div className="relative">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                    <Input 
+                      placeholder="Admin Email..." 
+                      className="pl-10 w-48 rounded-xl border-gray-200"
+                      value={logFilters.adminEmail}
+                      onChange={(e) => setLogFilters({ ...logFilters, adminEmail: e.target.value })}
+                    />
+                  </div>
+                  <select 
+                    className="h-10 rounded-xl border-gray-200 bg-white px-3 text-sm focus:outline-none focus:ring-2 focus:ring-rose-500"
+                    value={logFilters.action}
+                    onChange={(e) => setLogFilters({ ...logFilters, action: e.target.value })}
+                  >
+                    <option value="">All Actions</option>
+                    <option value="update_role">Update Role</option>
+                    <option value="update_status">Update Status</option>
+                    <option value="warn_user">Warn User</option>
+                    <option value="grant_premium">Grant Premium</option>
+                    <option value="refund_transaction">Refund</option>
+                    <option value="bulk_status">Bulk Status</option>
+                    <option value="bulk_role">Bulk Role</option>
+                  </select>
+                  <Button variant="outline" className="rounded-xl border-gray-200" onClick={fetchLogs}>
+                    Refresh
+                  </Button>
+                </div>
               </CardHeader>
               <CardContent>
                 {loading ? (
@@ -1209,24 +1419,24 @@ const AdminDashboard = () => {
                     <TableBody>
                       {logs.map((log) => (
                         <TableRow key={log._id}>
-                          <TableCell className="font-medium">{log.adminEmail}</TableCell>
+                          <TableCell className="font-medium text-xs">{log.adminEmail}</TableCell>
                           <TableCell>
-                            <Badge variant="secondary" className="capitalize">
+                            <Badge variant="secondary" className="capitalize text-[10px]">
                               {log.action.replace('_', ' ')}
                             </Badge>
                           </TableCell>
                           <TableCell>
-                            <div className="text-xs text-gray-500">
-                              {log.targetType}: {log.targetId}
+                            <div className="text-[10px] text-gray-500">
+                              {log.targetType}: <span className="font-mono">{log.targetId || 'N/A'}</span>
                             </div>
                           </TableCell>
                           <TableCell>
-                            <div className="text-xs font-mono bg-gray-50 p-1 rounded">
+                            <div className="text-[10px] font-mono bg-gray-50 p-2 rounded-lg max-w-xs truncate" title={JSON.stringify(log.details)}>
                               {JSON.stringify(log.details)}
                             </div>
                           </TableCell>
-                          <TableCell className="text-gray-500 whitespace-nowrap">
-                            {new Date(log.timestamp).toLocaleString()}
+                          <TableCell className="text-[10px] text-gray-500 whitespace-nowrap">
+                            {new Date(log.createdAt).toLocaleString()}
                           </TableCell>
                         </TableRow>
                       ))}

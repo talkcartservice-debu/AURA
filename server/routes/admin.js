@@ -96,13 +96,17 @@ router.post('/login', async (req, res) => {
 // Protected admin stats
 router.get('/stats', adminAuth(['super_admin', 'admin', 'support']), async (req, res) => {
   try {
-    const [totalUsers, activeUsers, premiumUsers, casualUsers, totalMessages, totalMatches] = await Promise.all([
+    const [totalUsers, activeUsers, premiumUsers, casualUsers, totalMessages, totalMatches, revenueResult] = await Promise.all([
       User.countDocuments(),
       User.countDocuments({ last_login: { $gte: new Date(Date.now() - 24 * 60 * 60 * 1000) } }),
       Subscription.countDocuments({ plan: 'premium', is_active: true }),
       Subscription.countDocuments({ casual_addon: true, is_active: true }),
       Message.countDocuments(),
-      Match.countDocuments()
+      Match.countDocuments(),
+      Transaction.aggregate([
+        { $match: { status: 'success' } },
+        { $group: { _id: null, total: { $sum: "$amount" } } }
+      ])
     ]);
 
     res.json({
@@ -112,7 +116,7 @@ router.get('/stats', adminAuth(['super_admin', 'admin', 'support']), async (req,
       casualUsers,
       totalMessages,
       totalMatches,
-      revenue: 0 
+      revenue: revenueResult[0]?.total || 0 
     });
   } catch (err) {
     console.error("Admin stats error:", err);
@@ -123,10 +127,28 @@ router.get('/stats', adminAuth(['super_admin', 'admin', 'support']), async (req,
 // User Management
 router.get('/users', adminAuth(['super_admin', 'admin']), async (req, res) => {
   try {
-    const [users, profiles, reports] = await Promise.all([
-      User.find().select('-password').lean(),
-      UserProfile.find().lean(),
-      Report.find().lean()
+    const { page = 1, limit = 50, search = '' } = req.query;
+    const skip = (parseInt(page) - 1) * parseInt(limit);
+    
+    let query = {};
+    if (search) {
+      query = {
+        $or: [
+          { email: { $regex: search, $options: 'i' } },
+          { username: { $regex: search, $options: 'i' } }
+        ]
+      };
+    }
+
+    const [users, total] = await Promise.all([
+      User.find(query).select('-password').sort({ createdAt: -1 }).skip(skip).limit(parseInt(limit)).lean(),
+      User.countDocuments(query)
+    ]);
+    
+    const userEmails = users.map(u => u.email);
+    const [profiles, reports] = await Promise.all([
+      UserProfile.find({ user_email: { $in: userEmails } }).lean(),
+      Report.find({ reported_email: { $in: userEmails } }).lean()
     ]);
     
     const combined = users.map(user => {
@@ -145,7 +167,12 @@ router.get('/users', adminAuth(['super_admin', 'admin']), async (req, res) => {
       };
     });
 
-    res.json(combined);
+    res.json({
+      users: combined,
+      total,
+      pages: Math.ceil(total / parseInt(limit)),
+      currentPage: parseInt(page)
+    });
   } catch (err) {
     console.error("Admin users fetch error:", err);
     res.status(500).json({ error: err.message });
@@ -229,10 +256,38 @@ router.post('/users/:id/grant-premium', adminAuth(['super_admin', 'support']), a
   }
 });
 
+router.post('/users/bulk-action', adminAuth(['super_admin']), async (req, res) => {
+  try {
+    const { userIds, action, value } = req.body; // action: 'status' or 'role', value: e.g., 'suspended'
+    
+    if (!userIds || !Array.isArray(userIds)) {
+      return res.status(400).json({ error: 'userIds must be an array' });
+    }
+
+    let update = {};
+    if (action === 'status') update = { status: value };
+    else if (action === 'role') update = { role: value };
+    else return res.status(400).json({ error: 'Invalid action' });
+
+    await User.updateMany({ _id: { $in: userIds } }, update);
+    
+    await logAdminAction(req.user, `bulk_${action}`, null, 'User', { userIds, value });
+    
+    res.json({ message: `Bulk ${action} updated successfully` });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // System Logs
 router.get('/logs', adminAuth(['super_admin']), async (req, res) => {
   try {
-    const logs = await AdminLog.find().sort({ createdAt: -1 }).limit(100);
+    const { adminEmail, action, limit = 100 } = req.query;
+    let query = {};
+    if (adminEmail) query.adminEmail = { $regex: adminEmail, $options: 'i' };
+    if (action) query.action = action;
+
+    const logs = await AdminLog.find(query).sort({ createdAt: -1 }).limit(parseInt(limit));
     res.json(logs);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -343,13 +398,76 @@ router.get('/revenue', adminAuth(['super_admin', 'admin']), async (req, res) => 
   }
 });
 
+router.get('/safety-stats', adminAuth(['super_admin', 'admin']), async (req, res) => {
+  try {
+    const [users, profiles, reports] = await Promise.all([
+      User.find().select('email status').lean(),
+      UserProfile.find().select('user_email is_verified').lean(),
+      Report.find().lean()
+    ]);
+
+    const usersWithRisk = users.map(user => {
+      const profile = profiles.find(p => p.user_email === user.email) || {};
+      const userReports = reports.filter(r => r.reported_email === user.email);
+      
+      let riskScore = userReports.length * 20;
+      if (user.status === 'suspended') riskScore += 30;
+      if (user.status === 'banned') riskScore = 100;
+      riskScore = Math.min(riskScore, 100);
+
+      return {
+        email: user.email,
+        status: user.status,
+        riskScore,
+        isVerified: profile.is_verified || false
+      };
+    });
+
+    const highRiskUsers = usersWithRisk.filter(u => u.riskScore > 50);
+    const verifiedCount = usersWithRisk.filter(u => u.isVerified).length;
+    
+    // Sort and get top 10
+    const topRisk = [...usersWithRisk]
+      .sort((a, b) => b.riskScore - a.riskScore)
+      .slice(0, 10);
+
+    res.json({
+      highRiskCount: highRiskUsers.length,
+      verifiedRatio: usersWithRisk.length > 0 ? (verifiedCount / usersWithRisk.length) * 100 : 0,
+      topRiskUsers: topRisk
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 router.post('/transactions/:id/refund', adminAuth(['super_admin']), async (req, res) => {
   try {
     const { amount, reason } = req.body;
     const tx = await Transaction.findById(req.params.id);
     if (!tx) return res.status(404).json({ error: 'Transaction not found' });
     
-    // Call Paystack Refund API here...
+    // Call Paystack Refund API if secret is available
+    if (PAYSTACK_SECRET) {
+      try {
+        await axios.post('https://api.paystack.co/refund', 
+          { 
+            transaction: tx.reference, 
+            amount: amount ? amount * 100 : undefined // Paystack expects amount in kobo/cents
+          },
+          {
+            headers: {
+              Authorization: `Bearer ${PAYSTACK_SECRET}`,
+              "Content-Type": "application/json"
+            }
+          }
+        );
+      } catch (paystackErr) {
+        console.error("Paystack refund error:", paystackErr.response?.data || paystackErr.message);
+        // Continue to update local DB even if Paystack fails (maybe already refunded manually)
+      }
+    }
+
     tx.status = 'refunded';
     tx.refund_details = {
       amount: amount || tx.amount,
@@ -443,25 +561,6 @@ router.get('/transactions', adminAuth(['super_admin', 'support']), async (req, r
     res.json(response.data.data);
   } catch (err) {
     res.status(500).json({ error: err.message });
-  }
-});
-
-router.post('/transactions/:id/refund', adminAuth(['super_admin']), async (req, res) => {
-  try {
-    const { id } = req.params;
-    const response = await axios.post('https://api.paystack.co/refund', 
-      { transaction: id },
-      {
-        headers: {
-          Authorization: `Bearer ${PAYSTACK_SECRET}`,
-          "Content-Type": "application/json"
-        }
-      }
-    );
-    await logAdminAction(req.user, 'refund_transaction', id, 'Transaction', { refundId: response.data.data.id });
-    res.json(response.data.data);
-  } catch (err) {
-    res.status(500).json({ error: err.response?.data?.message || err.message });
   }
 });
 
