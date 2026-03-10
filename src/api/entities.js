@@ -84,13 +84,13 @@ export const verificationService = {
   submit: (selfie_url) => api.post("/verification", { selfie_url }).then((r) => r.data),
   
   // Deep Verification
-  initDeep: (type = "basic") => api.post("/verification/deep/init", { verification_type: type }).then((r) => r.data),
-  submitID: (data) => api.post("/verification/deep/id-document", data).then((r) => r.data),
-  sendPhoneCode: (phone_number, country_code) => api.post("/verification/deep/phone/send-code", { phone_number, country_code }).then((r) => r.data),
-  verifyPhoneCode: (otp) => api.post("/verification/deep/phone/verify-code", { otp }).then((r) => r.data),
-  submitSocials: (social_accounts) => api.post("/verification/deep/social-accounts", { social_accounts }).then((r) => r.data),
-  submitVideo: (data) => api.post("/verification/deep/video", data).then((r) => r.data),
-  getStatus: (email) => api.get("/verification/deep/status", { params: { email } }).then((r) => r.data),
+  initDeep: (type = "basic") => api.post("/deep-verification/deep/init", { verification_type: type }).then((r) => r.data),
+  submitID: (data) => api.post("/deep-verification/deep/id-document", data).then((r) => r.data),
+  sendPhoneCode: (phone_number, country_code) => api.post("/deep-verification/deep/phone/send-code", { phone_number, country_code }).then((r) => r.data),
+  verifyPhoneCode: (otp) => api.post("/deep-verification/deep/phone/verify-code", { otp }).then((r) => r.data),
+  submitSocials: (social_accounts) => api.post("/deep-verification/deep/social-accounts", { social_accounts }).then((r) => r.data),
+  submitVideo: (data) => api.post("/deep-verification/deep/video", data).then((r) => r.data),
+  getStatus: () => api.get("/deep-verification/deep/status").then((r) => r.data),
 };
 
 // Subscriptions

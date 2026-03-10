@@ -1,6 +1,6 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { verificationService, uploadService } from "@/api/entities";
+import { verificationService, uploadService, profileService } from "@/api/entities";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -14,7 +14,10 @@ import {
   AlertCircle,
   Loader2,
   ChevronRight,
-  ArrowLeft
+  ArrowLeft,
+  Play,
+  Square,
+  RefreshCw
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -23,6 +26,22 @@ export default function DeepVerification() {
   const [step, setStep] = useState("overview"); // overview, phone, id, socials, video
   const [loading, setLoading] = useState(false);
   
+  // Video recording states
+  const [recording, setRecording] = useState(false);
+  const [videoBlob, setVideoBlob] = useState(null);
+  const [videoUrl, setVideoUrl] = useState(null);
+  const [stream, setStream] = useState(null);
+  const mediaRecorderRef = useRef(null);
+  const videoPreviewRef = useRef(null);
+  const chunksRef = useRef([]);
+
+  const { data: profile } = useQuery({ 
+    queryKey: ["myProfile"], 
+    queryFn: profileService.getMe 
+  });
+  
+  const verificationPhrase = "I verify my AURA profile identity today";
+
   // States for verification data
   const [phone, setPhone] = useState("");
   const [otp, setOtp] = useState("");
@@ -56,7 +75,7 @@ export default function DeepVerification() {
   });
 
   const phoneMutation = useMutation({
-    mutationFn: () => verificationService.sendPhoneCode(phone, "+1"), // Default code
+    mutationFn: () => verificationService.sendPhoneCode(phone, "+1"),
     onSuccess: () => {
       setOtpSent(true);
       toast.success("Verification code sent!");
@@ -102,6 +121,83 @@ export default function DeepVerification() {
     }
   });
 
+  const videoMutation = useMutation({
+    mutationFn: async () => {
+      setLoading(true);
+      try {
+        const file = new File([videoBlob], "verification.webm", { type: "video/webm" });
+        const video_url = await uploadService.single(file);
+        
+        await verificationService.submitVideo({
+          video_url,
+          duration: 15, // Fixed duration for demo
+          phrase: verificationPhrase
+        });
+        toast.success("Video submitted for review");
+        setStep("overview");
+      } finally {
+        setLoading(false);
+      }
+    }
+  });
+
+  const startCamera = async () => {
+    try {
+      const s = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+      setStream(s);
+      if (videoPreviewRef.current) {
+        videoPreviewRef.current.srcObject = s;
+      }
+    } catch (err) {
+      toast.error("Could not access camera/microphone");
+    }
+  };
+
+  const stopCamera = () => {
+    if (stream) {
+      stream.getTracks().forEach(track => track.stop());
+      setStream(null);
+    }
+  };
+
+  const startRecording = () => {
+    if (!stream) return;
+    chunksRef.current = [];
+    const recorder = new MediaRecorder(stream);
+    recorder.ondataavailable = (e) => chunksRef.current.push(e.data);
+    recorder.onstop = () => {
+      const blob = new Blob(chunksRef.current, { type: "video/webm" });
+      setVideoBlob(blob);
+      setVideoUrl(URL.createObjectURL(blob));
+    };
+    recorder.start();
+    mediaRecorderRef.current = recorder;
+    setRecording(true);
+  };
+
+  const stopRecording = () => {
+    if (mediaRecorderRef.current && recording) {
+      mediaRecorderRef.current.stop();
+      setRecording(false);
+      stopCamera();
+    }
+  };
+
+  const resetVideo = () => {
+    setVideoBlob(null);
+    setVideoUrl(null);
+    startCamera();
+  };
+
+  useEffect(() => {
+    if (step === "video") {
+      startCamera();
+    } else {
+      stopCamera();
+    }
+    return () => stopCamera();
+  }, [step]);
+
   const handleInit = async () => {
     try {
       await initMutation.mutateAsync("comprehensive");
@@ -142,7 +238,7 @@ export default function DeepVerification() {
                 <VerificationItem 
                   icon={Smartphone} 
                   label="Phone Verification" 
-                  status={badgeStatus("phone_verified") ? "verified" : "pending"}
+                  status={badgeStatus("phone_verified") ? "verified" : status.phone_verification?.phone_number ? "in_review" : "pending"}
                   onClick={() => setStep("phone")}
                 />
                 <VerificationItem 
@@ -160,7 +256,7 @@ export default function DeepVerification() {
                 <VerificationItem 
                   icon={Video} 
                   label="Video Liveness" 
-                  status={badgeStatus("video_verified") ? "verified" : "pending"}
+                  status={badgeStatus("video_verified") ? "verified" : status.video_verification?.video_url ? "in_review" : "pending"}
                   onClick={() => setStep("video")}
                 />
               </div>
@@ -331,15 +427,98 @@ export default function DeepVerification() {
     );
   }
 
-  return (
-    <div className="p-8 text-center text-gray-500">
-      <Video className="w-12 h-12 mx-auto mb-4 text-gray-300" />
-      <h3 className="font-bold">Video Verification</h3>
-      <p className="text-sm">Video liveness check is coming soon!</p>
-      <Button onClick={() => setStep("overview")} variant="ghost" className="mt-4">Back to Overview</Button>
-    </div>
-  );
+  // Video Liveness Check UI
+  if (step === "video") {
+    return (
+      <div className="space-y-4">
+        <button onClick={() => setStep("overview")} className="flex items-center gap-2 text-sm text-gray-500 font-bold mb-4">
+          <ArrowLeft className="w-4 h-4" /> Back
+        </button>
+        
+        <Card className="rounded-[2rem] border-gray-100 overflow-hidden">
+          <CardHeader>
+            <CardTitle>Video Verification</CardTitle>
+            <CardDescription>Read the phrase below clearly while recording</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-6">
+            <div className="relative aspect-video bg-gray-900 rounded-3xl overflow-hidden shadow-inner">
+              {videoUrl ? (
+                <video src={videoUrl} controls className="w-full h-full object-cover" />
+              ) : (
+                <video 
+                  ref={videoPreviewRef} 
+                  autoPlay 
+                  muted 
+                  playsInline 
+                  className={`w-full h-full object-cover ${recording ? "opacity-100" : "opacity-70"}`} 
+                />
+              )}
+              
+              {recording && (
+                <div className="absolute top-4 right-4 flex items-center gap-2 px-3 py-1 bg-red-500 text-white text-xs font-black rounded-full animate-pulse">
+                  <div className="w-2 h-2 bg-white rounded-full" />
+                  REC
+                </div>
+              )}
+            </div>
+
+            <div className="p-6 bg-blue-50 border border-blue-100 rounded-3xl text-center">
+              <p className="text-xs font-black text-blue-400 uppercase tracking-widest mb-2">Read this phrase</p>
+              <p className="text-xl font-bold text-blue-900 italic">
+                "{verificationPhrase}"
+              </p>
+            </div>
+
+            <div className="flex flex-col gap-3">
+              {!videoUrl ? (
+                recording ? (
+                  <Button 
+                    onClick={stopRecording} 
+                    className="h-14 rounded-2xl bg-red-500 hover:bg-red-600 text-white font-bold gap-2"
+                  >
+                    <Square className="w-5 h-5 fill-current" /> Stop Recording
+                  </Button>
+                ) : (
+                  <Button 
+                    onClick={startRecording} 
+                    className="h-14 rounded-2xl bg-blue-600 hover:bg-blue-700 text-white font-bold gap-2"
+                  >
+                    <Play className="w-5 h-5 fill-current" /> Start Recording
+                  </Button>
+                )
+              ) : (
+                <div className="flex gap-3">
+                  <Button 
+                    onClick={resetVideo} 
+                    variant="outline"
+                    className="flex-1 h-14 rounded-2xl font-bold gap-2"
+                  >
+                    <RefreshCw className="w-5 h-5" /> Retake
+                  </Button>
+                  <Button 
+                    onClick={() => videoMutation.mutate()} 
+                    disabled={loading}
+                    className="flex-[2] h-14 rounded-2xl bg-green-600 hover:bg-green-700 text-white font-bold gap-2"
+                  >
+                    {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : <CheckCircle2 className="w-5 h-5" />}
+                    {loading ? "Uploading..." : "Submit Verification"}
+                  </Button>
+                </div>
+              )}
+            </div>
+            
+            <p className="text-[10px] text-gray-400 text-center px-4 font-medium">
+              By submitting, you agree that this video will be used for identity verification purposes only.
+            </p>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  return null;
 }
+
 
 function VerificationItem({ icon: Icon, label, status, onClick }) {
   const getStatusColor = () => {

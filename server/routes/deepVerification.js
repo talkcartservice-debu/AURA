@@ -1,4 +1,5 @@
 import express from "express";
+import auth from "../middleware/auth.js";
 import {
   initVerification,
   submitIDDocument,
@@ -15,16 +16,13 @@ import {
 const router = express.Router();
 
 /**
- * POST /api/verification/deep/init
+ * POST /api/deep-verification/deep/init
  * Initialize deep verification process
  */
-router.post("/deep/init", async (req, res) => {
+router.post("/deep/init", auth, async (req, res) => {
   try {
-    const { email, verification_type = "basic" } = req.body;
-
-    if (!email) {
-      return res.status(400).json({ error: "Email is required" });
-    }
+    const { verification_type = "basic" } = req.body;
+    const email = req.user.email;
 
     const result = await initVerification(email, verification_type);
 
@@ -36,15 +34,16 @@ router.post("/deep/init", async (req, res) => {
 });
 
 /**
- * POST /api/verification/deep/id-document
+ * POST /api/deep-verification/deep/id-document
  * Submit ID document for verification
  */
-router.post("/deep/id-document", async (req, res) => {
+router.post("/deep/id-document", auth, async (req, res) => {
   try {
-    const { email, ...documentData } = req.body;
+    const { ...documentData } = req.body;
+    const email = req.user.email;
 
-    if (!email || !documentData.front_url || !documentData.document_type) {
-      return res.status(400).json({ error: "Email, front_url, and document_type are required" });
+    if (!documentData.front_url || !documentData.document_type) {
+      return res.status(400).json({ error: "front_url and document_type are required" });
     }
 
     const result = await submitIDDocument(email, documentData);
@@ -57,15 +56,16 @@ router.post("/deep/id-document", async (req, res) => {
 });
 
 /**
- * POST /api/verification/deep/phone/send-code
+ * POST /api/deep-verification/deep/phone/send-code
  * Send phone verification code
  */
-router.post("/deep/phone/send-code", async (req, res) => {
+router.post("/deep/phone/send-code", auth, async (req, res) => {
   try {
-    const { email, phone_number, country_code } = req.body;
+    const { phone_number, country_code } = req.body;
+    const email = req.user.email;
 
-    if (!email || !phone_number) {
-      return res.status(400).json({ error: "Email and phone number are required" });
+    if (!phone_number) {
+      return res.status(400).json({ error: "Phone number is required" });
     }
 
     const result = await sendPhoneVerificationCode(email, phone_number, country_code);
@@ -78,15 +78,16 @@ router.post("/deep/phone/send-code", async (req, res) => {
 });
 
 /**
- * POST /api/verification/deep/phone/verify-code
+ * POST /api/deep-verification/deep/phone/verify-code
  * Verify phone OTP code
  */
-router.post("/deep/phone/verify-code", async (req, res) => {
+router.post("/deep/phone/verify-code", auth, async (req, res) => {
   try {
-    const { email, otp } = req.body;
+    const { otp } = req.body;
+    const email = req.user.email;
 
-    if (!email || !otp) {
-      return res.status(400).json({ error: "Email and OTP are required" });
+    if (!otp) {
+      return res.status(400).json({ error: "OTP is required" });
     }
 
     const result = await verifyPhoneCode(email, otp);
@@ -99,15 +100,16 @@ router.post("/deep/phone/verify-code", async (req, res) => {
 });
 
 /**
- * POST /api/verification/deep/social-accounts
+ * POST /api/deep-verification/deep/social-accounts
  * Submit social media accounts
  */
-router.post("/deep/social-accounts", async (req, res) => {
+router.post("/deep/social-accounts", auth, async (req, res) => {
   try {
-    const { email, social_accounts } = req.body;
+    const { social_accounts } = req.body;
+    const email = req.user.email;
 
-    if (!email || !social_accounts) {
-      return res.status(400).json({ error: "Email and social_accounts are required" });
+    if (!social_accounts) {
+      return res.status(400).json({ error: "social_accounts are required" });
     }
 
     const result = await submitSocialAccounts(email, social_accounts);
@@ -120,15 +122,16 @@ router.post("/deep/social-accounts", async (req, res) => {
 });
 
 /**
- * POST /api/verification/deep/video
+ * POST /api/deep-verification/deep/video
  * Submit video verification
  */
-router.post("/deep/video", async (req, res) => {
+router.post("/deep/video", auth, async (req, res) => {
   try {
-    const { email, video_url, duration, phrase } = req.body;
+    const { video_url, duration, phrase } = req.body;
+    const email = req.user.email;
 
-    if (!email || !video_url) {
-      return res.status(400).json({ error: "Email and video_url are required" });
+    if (!video_url) {
+      return res.status(400).json({ error: "video_url is required" });
     }
 
     const result = await submitVideoVerification(email, {
@@ -145,16 +148,13 @@ router.post("/deep/video", async (req, res) => {
 });
 
 /**
- * POST /api/verification/deep/fraud-detection
+ * POST /api/deep-verification/deep/fraud-detection
  * Perform AI fraud detection
  */
-router.post("/deep/fraud-detection", async (req, res) => {
+router.post("/deep/fraud-detection", auth, async (req, res) => {
   try {
-    const { email, ip, device_fingerprint, country, city, is_vpn, is_proxy } = req.body;
-
-    if (!email) {
-      return res.status(400).json({ error: "Email is required" });
-    }
+    const { ip, device_fingerprint, country, city, is_vpn, is_proxy } = req.body;
+    const email = req.user.email;
 
     const verification = await VerificationRequest.findOne({ user_email: email });
 
@@ -182,8 +182,8 @@ router.post("/deep/fraud-detection", async (req, res) => {
 });
 
 /**
- * POST /api/verification/deep/approve
- * Approve verification (admin only)
+ * POST /api/deep-verification/deep/approve
+ * Approve verification (admin only - should have admin middleware)
  */
 router.post("/deep/approve", async (req, res) => {
   try {
@@ -203,8 +203,8 @@ router.post("/deep/approve", async (req, res) => {
 });
 
 /**
- * POST /api/verification/deep/reject
- * Reject verification (admin only)
+ * POST /api/deep-verification/deep/reject
+ * Reject verification (admin only - should have admin middleware)
  */
 router.post("/deep/reject", async (req, res) => {
   try {
@@ -224,16 +224,12 @@ router.post("/deep/reject", async (req, res) => {
 });
 
 /**
- * GET /api/verification/deep/status
+ * GET /api/deep-verification/deep/status
  * Get verification status
  */
-router.get("/deep/status", async (req, res) => {
+router.get("/deep/status", auth, async (req, res) => {
   try {
-    const { email } = req.query;
-
-    if (!email) {
-      return res.status(400).json({ error: "Email is required" });
-    }
+    const email = req.user.email;
 
     const result = await getVerificationStatus(email);
 
