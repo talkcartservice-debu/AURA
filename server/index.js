@@ -25,6 +25,7 @@ import relationshipCoachRoutes from "./routes/relationshipCoach.js";
 import adminRoutes from "./routes/admin.js";
 import maintenance from "./middleware/maintenance.js";
 import { initializeSocketIO } from "./signaling.js";
+import { ensureSuperAdmin } from "./utils/adminSetup.js";
 
 const app = express();
 const httpServer = createServer(app);
@@ -93,8 +94,9 @@ if (!MONGODB_URI.startsWith("mongodb://") && !MONGODB_URI.startsWith("mongodb+sr
 
 mongoose
   .connect(MONGODB_URI)
-  .then(() => {
+  .then(async () => {
     console.log("Connected to MongoDB");
+    await ensureSuperAdmin();
     httpServer.listen(PORT, "0.0.0.0", () => console.log(`Server running on port ${PORT}`));
   })
   .catch((err) => {
