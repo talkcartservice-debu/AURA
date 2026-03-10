@@ -31,9 +31,17 @@ const GOAL_LABELS = {
   open_to_anything: "Open to anything",
 };
 
+const GENDER_LABELS = {
+  man: "Men",
+  woman: "Women",
+  non_binary: "Non-binary",
+  other: "Other",
+};
+
 const DEFAULT_FILTERS = {
   ageMin: 18,
   ageMax: 60,
+  genders: [],
   relationshipGoals: [],
   interests: [],
   maxDistance: 0,
@@ -56,10 +64,20 @@ export default function SearchFilters({ onFiltersChange }) {
     filters.interests.length > 0,
     filters.maxDistance > 0,
     filters.onlineOnly,
+    filters.genders?.length > 0,
     filters.datingIntent?.length > 0,
     filters.values?.length > 0,
     filters.lifestyle?.smoking || filters.lifestyle?.drinking,
   ].filter(Boolean).length;
+
+  const toggleGender = (gender) => {
+    setDraft((d) => ({
+      ...d,
+      genders: d.genders?.includes(gender)
+        ? d.genders.filter((g) => g !== gender)
+        : [...(d.genders || []), gender],
+    }));
+  };
 
   const toggleGoal = (goal) => {
     setDraft((d) => ({
@@ -154,6 +172,28 @@ export default function SearchFilters({ onFiltersChange }) {
                 >
                   <X className="w-4 h-4" />
                 </button>
+              </div>
+
+              {/* Gender Filter */}
+              <div className="mb-5 border-t border-gray-100 pt-4">
+                <label className="text-sm font-semibold text-gray-700 mb-2 block">
+                  I'm interested in
+                </label>
+                <div className="flex flex-wrap gap-2">
+                  {Object.entries(GENDER_LABELS).map(([value, label]) => (
+                    <button
+                      key={value}
+                      onClick={() => toggleGender(value)}
+                      className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-all ${
+                        draft.genders?.includes(value)
+                          ? "bg-rose-100 border-rose-400 text-rose-700"
+                          : "bg-gray-50 border-gray-200 text-gray-500 hover:border-gray-300"
+                      }`}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
               </div>
 
               {/* Dating Intent - Premium Only */}

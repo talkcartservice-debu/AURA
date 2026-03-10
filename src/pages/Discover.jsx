@@ -55,6 +55,7 @@ export default function Discover() {
     if (!p) return true;
     
     // Basic filters (free)
+    if (filters.genders?.length && !filters.genders.includes(p.gender)) return false;
     if (filters.ageMin && p.age < filters.ageMin) return false;
     if (filters.ageMax && p.age > filters.ageMax) return false;
     if (filters.relationshipGoals?.length && !filters.relationshipGoals.includes(p.relationship_goals)) return false;
