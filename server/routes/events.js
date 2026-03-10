@@ -247,9 +247,13 @@ router.put("/:id/messages/:messageId", auth, async (req, res) => {
 
 router.delete("/:id/messages/:messageId", auth, async (req, res) => {
   try {
+    console.log(`Attempting to delete message ${req.params.messageId} from event ${req.params.id}`);
     const message = await EventMessage.findOne({ _id: req.params.messageId, event_id: req.params.id });
     
-    if (!message) return res.status(404).json({ error: "Message not found" });
+    if (!message) {
+      console.warn(`Message ${req.params.messageId} not found for event ${req.params.id}`);
+      return res.status(404).json({ error: "Message not found" });
+    }
     if (message.sender_email !== req.user.email) {
       return res.status(403).json({ error: "Can only delete your own messages" });
     }
@@ -269,6 +273,7 @@ router.delete("/:id/messages/:messageId", auth, async (req, res) => {
 
     res.json({ success: true });
   } catch (err) {
+    console.error("Delete event message error:", err);
     res.status(500).json({ error: err.message });
   }
 });

@@ -1,14 +1,24 @@
-import { Users, MapPin, MessageCircle, Clock, Check, X as XIcon } from "lucide-react";
+import { Users, MapPin, MessageCircle, Clock, Check, X as XIcon, Calendar, ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { useQuery } from "@tanstack/react-query";
+import { eventService } from "@/api/entities";
+import { useNavigate } from "react-router-dom";
 
 export default function GroupCard({ group, userEmail, onJoin, onLeave, onCreateEvent, onOpenChat, onManageRequests }) {
+  const navigate = useNavigate();
   const isMember = (group.member_emails || []).includes(userEmail);
   const isPending = (group.pending_member_emails || []).includes(userEmail);
   const isCreator = group.creator_email === userEmail;
   const memberCount = (group.member_emails || []).length;
   const pendingCount = (group.pending_member_emails || []).length;
   const isFull = group.max_members && memberCount >= group.max_members;
+
+  const { data: groupEvents } = useQuery({
+    queryKey: ["groupEvents", group._id],
+    queryFn: () => eventService.list(group._id),
+    enabled: isMember
+  });
 
   return (
     <div className={`bg-white rounded-2xl border-2 p-4 shadow-sm transition-all ${isMember ? "border-rose-200 bg-rose-50/30" : isPending ? "border-amber-100 bg-amber-50/20" : "border-gray-100"}`}>
@@ -39,10 +49,58 @@ export default function GroupCard({ group, userEmail, onJoin, onLeave, onCreateE
               </span>
             )}
           </div>
+          
+          {isMember && groupEvents?.length > 0 && (
+            <div className="mt-4 space-y-2">
+              <div className="flex items-center justify-between">
+                <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Upcoming Events</p>
+                <button onClick={() => navigate("/events")} className="text-[10px] font-bold text-rose-500 hover:underline flex items-center gap-0.5">
+                  See all <ArrowRight className="w-2.5 h-2.5" />
+                </button>
+              </div>
+              <div className="space-y-1.5">
+                {groupEvents.slice(0, 2).map(ev => {
+                  const isGoing = ev.rsvp_emails?.includes(userEmail);
+                  return (
+                    <div key={ev._id} className="flex items-center justify-between p-2 bg-white rounded-xl border border-rose-50 shadow-sm">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <span className="text-sm shrink-0">{ev.cover_emoji || "📅"}</span>
+                        <div className="min-w-0">
+                          <p className="text-xs font-bold text-gray-800 truncate">{ev.title}</p>
+                          <p className="text-[9px] text-gray-400">{ev.event_date}</p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        {isGoing ? (
+                          <Button 
+                            onClick={() => navigate(`/events/${ev._id}/chat`)}
+                            size="sm"
+                            className="h-7 w-7 p-0 rounded-lg bg-rose-50 text-rose-600 hover:bg-rose-100 border-none shadow-none"
+                          >
+                            <MessageCircle className="w-3.5 h-3.5" />
+                          </Button>
+                        ) : (
+                          <Button 
+                            onClick={() => navigate("/events")}
+                            size="sm"
+                            variant="ghost"
+                            className="h-7 text-[9px] font-black uppercase text-rose-500 px-2 rounded-lg"
+                          >
+                            RSVP
+                          </Button>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
           {group.tags?.length > 0 && (
-            <div className="flex flex-wrap gap-1 mt-2">
+            <div className="flex flex-wrap gap-1 mt-3">
               {group.tags.slice(0, 3).map((t) => (
-                <span key={t} className="px-2 py-0.5 bg-rose-50 text-rose-600 rounded-full text-xs">#{t}</span>
+                <span key={t} className="px-2 py-0.5 bg-rose-50 text-rose-600 rounded-full text-[10px]">#{t}</span>
               ))}
             </div>
           )}

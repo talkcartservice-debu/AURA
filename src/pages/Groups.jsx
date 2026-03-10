@@ -10,7 +10,7 @@ import JoinRequestsModal from "@/components/groups/JoinRequestsModal";
 import CreateEventModal from "@/components/events/CreateEventModal";
 import AIRelationshipCoach from "@/components/coach/AIRelationshipCoach";
 import { Button } from "@/components/ui/button";
-import { Plus, Loader2, Users, Calendar } from "lucide-react";
+import { Plus, Loader2, Users, Calendar, MessageCircle } from "lucide-react";
 import { toast } from "sonner";
 
 const CATEGORY_EMOJI = { outdoor: "🏕️", arts: "🎨", food: "🍕", sports: "⚽", books: "📚", music: "🎵", travel: "✈️", fitness: "💪", social: "🎉", other: "✨" };

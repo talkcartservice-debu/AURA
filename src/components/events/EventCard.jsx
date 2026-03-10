@@ -1,4 +1,4 @@
-import { Calendar, Clock, MapPin, Users, CheckCircle2, Sparkles, Heart, ThumbsUp, MessageCircle } from "lucide-react";
+import { Calendar, Clock, MapPin, Users, CheckCircle, Sparkles, Heart, ThumbsUp, MessageCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { format, parseISO } from "date-fns";
 import { useNavigate } from "react-router-dom";
@@ -62,7 +62,7 @@ export default function EventCard({ event, userEmail, onRSVP, onUpvote, showAIIn
               )}
             </h3>
             {isGoing && (
-              <CheckCircle2 className="w-4 h-4 text-rose-500 flex-shrink-0 mt-0.5" />
+              <CheckCircle className="w-4 h-4 text-rose-500 flex-shrink-0 mt-0.5" />
             )}
           </div>
           {event.description && (

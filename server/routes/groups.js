@@ -15,6 +15,77 @@ router.get("/", auth, async (req, res) => {
   }
 });
 
+// Group Messaging - Moved UP to avoid potential shadowing
+router.get("/:id/messages", auth, async (req, res) => {
+  try {
+    console.log(`GET /groups/${req.params.id}/messages - User: ${req.user.email}`);
+    const group = await Group.findById(req.params.id);
+    if (!group) {
+      console.warn(`Group not found: ${req.params.id}`);
+      return res.status(404).json({ error: "Group not found" });
+    }
+    
+    // Check if user is a member
+    if (!group.member_emails.includes(req.user.email)) {
+      console.warn(`User ${req.user.email} is not a member of group ${req.params.id}`);
+      return res.status(403).json({ error: "Must be a member to see messages" });
+    }
+
+    const messages = await GroupMessage.find({ group_id: req.params.id, deleted: false })
+      .sort({ createdAt: 1 })
+      .limit(100);
+    res.json(messages);
+  } catch (err) {
+    console.error(`Error in GET /groups/${req.params.id}/messages:`, err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.post("/:id/messages", auth, async (req, res) => {
+  try {
+    console.log(`POST /groups/${req.params.id}/messages - User: ${req.user.email}`);
+    const { content, image_url } = req.body;
+    
+    if (!content && !image_url) {
+      return res.status(400).json({ error: "Content or image_url is required" });
+    }
+
+    const group = await Group.findById(req.params.id);
+    if (!group) {
+      console.warn(`Group not found: ${req.params.id}`);
+      return res.status(404).json({ error: "Group not found" });
+    }
+
+    if (!group.member_emails.includes(req.user.email)) {
+      console.warn(`User ${req.user.email} is not a member of group ${req.params.id}`);
+      return res.status(403).json({ error: "Must be a member to post messages" });
+    }
+
+    const message = await GroupMessage.create({
+      group_id: group._id,
+      sender_email: req.user.email,
+      content,
+      image_url,
+    });
+
+    // Notify all members except sender
+    try {
+      const otherMembers = group.member_emails.filter(e => e !== req.user.email);
+      emitToUsers(otherMembers, "group_message_received", {
+        group_id: group._id.toString(),
+        message,
+      });
+    } catch (notifyErr) {
+      console.error("Group message signaling error:", notifyErr);
+    }
+
+    res.status(201).json(message);
+  } catch (err) {
+    console.error(`Error in POST /groups/${req.params.id}/messages:`, err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 router.get("/:id", auth, async (req, res) => {
   try {
     const group = await Group.findById(req.params.id);
@@ -129,65 +200,6 @@ router.post("/:id/leave", auth, async (req, res) => {
       { new: true }
     );
     res.json(group);
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
-// Group Messaging
-router.get("/:id/messages", auth, async (req, res) => {
-  try {
-    const group = await Group.findById(req.params.id);
-    if (!group) return res.status(404).json({ error: "Group not found" });
-    
-    // Check if user is a member
-    if (!group.member_emails.includes(req.user.email)) {
-      return res.status(403).json({ error: "Must be a member to see messages" });
-    }
-
-    const messages = await GroupMessage.find({ group_id: req.params.id, deleted: false })
-      .sort({ createdAt: 1 })
-      .limit(100);
-    res.json(messages);
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
-router.post("/:id/messages", auth, async (req, res) => {
-  try {
-    const { content, image_url } = req.body;
-    
-    if (!content && !image_url) {
-      return res.status(400).json({ error: "Content or image_url is required" });
-    }
-
-    const group = await Group.findById(req.params.id);
-    if (!group) return res.status(404).json({ error: "Group not found" });
-
-    if (!group.member_emails.includes(req.user.email)) {
-      return res.status(403).json({ error: "Must be a member to post messages" });
-    }
-
-    const message = await GroupMessage.create({
-      group_id: group._id,
-      sender_email: req.user.email,
-      content,
-      image_url,
-    });
-
-    // Notify all members except sender
-    try {
-      const otherMembers = group.member_emails.filter(e => e !== req.user.email);
-      emitToUsers(otherMembers, "group_message_received", {
-        group_id: group._id.toString(),
-        message,
-      });
-    } catch (notifyErr) {
-      console.error("Group message signaling error:", notifyErr);
-    }
-
-    res.status(201).json(message);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

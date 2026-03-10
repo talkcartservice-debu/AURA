@@ -4,7 +4,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { eventService, profileService, uploadService } from "@/api/entities";
 import { useAuth } from "@/lib/AuthContext";
 import { useSocket } from "@/hooks/useSocket";
-import { X, Send, Loader2, User, AlertCircle, Camera, Image as ImageIcon, Smile, ArrowLeft, MoreVertical, Reply, Pencil, Trash2, CornerUpLeft, CheckCircle2 } from "lucide-react";
+import { X, Send, Loader2, User, AlertCircle, Camera, Image as ImageIcon, Smile, ArrowLeft, MoreVertical, Reply, Pencil, Trash2, CornerUpLeft, CheckCircle, Shield } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import {
@@ -192,6 +192,10 @@ export default function EventChatScreen() {
     });
   }, [messages]);
 
+  const isCreator = event?.creator_email === user?.email;
+  const isAttendee = event?.rsvp_emails?.includes(user?.email);
+  const isPending = event?.pending_rsvp_emails?.includes(user?.email);
+
   if (!event && !isLoading) {
     return (
       <div className="flex flex-col items-center justify-center min-h-screen p-4">
@@ -200,6 +204,39 @@ export default function EventChatScreen() {
         <Button onClick={() => navigate("/events")} variant="link" className="text-rose-500 mt-2">
           Back to Events
         </Button>
+      </div>
+    );
+  }
+
+  if (event && !isCreator && !isAttendee) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-screen p-6 text-center">
+        <div className="w-20 h-20 rounded-[2.5rem] bg-rose-50 flex items-center justify-center mb-6 shadow-sm ring-4 ring-white">
+          <Shield className="w-10 h-10 text-rose-500" />
+        </div>
+        <h2 className="text-xl font-black text-gray-900 mb-2">Private Event Chat</h2>
+        <p className="text-gray-500 text-sm max-w-xs mb-8">
+          {isPending 
+            ? "Your request to join this event is pending approval from the host." 
+            : "You must RSVP and be approved by the host to access this chat."}
+        </p>
+        <div className="flex flex-col gap-3 w-full max-w-xs">
+          {!isPending && (
+            <Button 
+              onClick={() => eventService.rsvp(eventId).then(() => qc.invalidateQueries(["events"]))}
+              className="w-full rounded-2xl h-12 bg-gradient-to-r from-rose-500 to-purple-600 text-white font-bold"
+            >
+              Request to Join Event
+            </Button>
+          )}
+          <Button 
+            onClick={() => navigate("/events")} 
+            variant="outline" 
+            className="w-full rounded-2xl h-12 border-gray-200 text-gray-600 font-bold"
+          >
+            Back to Events
+          </Button>
+        </div>
       </div>
     );
   }
@@ -463,7 +500,7 @@ export default function EventChatScreen() {
               disabled={(!text.trim() && !selectedFile) || sendMutation.isPending || editMutation.isPending || isUploading}
               className="w-10 h-10 rounded-full bg-gradient-to-r from-rose-500 to-purple-600 text-white p-0 transition-all active:scale-90 shrink-0"
             >
-              {sendMutation.isPending || editMutation.isPending || isUploading ? <Loader2 className="w-4 h-4 animate-spin" /> : editingMessage ? <CheckCircle2 className="w-4 h-4" /> : <Send className="w-4 h-4" />}
+              {sendMutation.isPending || editMutation.isPending || isUploading ? <Loader2 className="w-4 h-4 animate-spin" /> : editingMessage ? <CheckCircle className="w-4 h-4" /> : <Send className="w-4 h-4" />}
             </Button>
           </div>
         </form>

@@ -41,8 +41,9 @@ router.post("/initialize", auth, async (req, res) => {
     const { plan, billing_cycle, add_casual, callback_url } = req.body;
     
     if (!PAYSTACK_SECRET || PAYSTACK_SECRET.includes('replace_with')) {
-      return res.status(500).json({ 
-        error: "Paystack API key is not configured. Please add it to your server .env file." 
+      console.warn("Paystack API key is not configured or still using placeholder.");
+      return res.status(400).json({ 
+        error: "Payment initialization failed: Paystack API key is not configured in the server's .env file. Please add a valid PAYSTACK_SECRET_KEY." 
       });
     }
     
