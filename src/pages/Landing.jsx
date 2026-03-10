@@ -125,9 +125,12 @@ export default function Landing() {
 
     setErrors({});
     setLoading(true);
+    const trimmedEmail = email.trim();
+    const trimmedPassword = password.trim();
+    
     try {
       if (mode === "login") {
-        const data = await login(email, password);
+        const data = await login(trimmedEmail, trimmedPassword);
         toast.success("Welcome back!");
         if (["super_admin", "admin", "moderator", "support"].includes(data.role)) {
           navigate("/admin");
@@ -136,7 +139,7 @@ export default function Landing() {
         }
         // Biometric modal will auto-open via useEffect if needed
       } else {
-        await signup(email, password, username.trim());
+        await signup(trimmedEmail, trimmedPassword, username.trim());
         toast.success("Account created successfully!");
         navigate("/setup");
         // Don't auto-show biometric modal here - let user complete profile first

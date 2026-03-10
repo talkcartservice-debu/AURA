@@ -29,7 +29,10 @@ const AdminLogin = () => {
     setLoading(true);
 
     try {
-      const data = await adminService.login({ email, password });
+      const data = await adminService.login({ 
+        email: email.trim().toLowerCase(), 
+        password: password.trim() 
+      });
       
       // Update local storage and context using correct key
       localStorage.setItem("aura_token", data.token);

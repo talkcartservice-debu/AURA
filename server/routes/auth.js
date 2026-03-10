@@ -24,7 +24,7 @@ router.post("/signup", async (req, res) => {
       return res.status(400).json({ error: "Username is required" });
     }
 
-    const normalizedEmail = email.toLowerCase();
+    const normalizedEmail = email.toLowerCase().trim();
     const normalizedUsername = username.toLowerCase().trim();
 
     const existing = await User.findOne({ email: normalizedEmail });
@@ -75,10 +75,10 @@ router.post("/login", async (req, res) => {
     if (!email || !password) {
       return res.status(400).json({ error: "Email and password required" });
     }
-    const user = await User.findOne({ email: email.toLowerCase() });
+    const user = await User.findOne({ email: email.toLowerCase().trim() });
     if (!user) return res.status(401).json({ error: "Invalid credentials" });
 
-    const valid = await bcrypt.compare(password, user.password);
+    const valid = await bcrypt.compare(password.trim(), user.password);
     if (!valid) return res.status(401).json({ error: "Invalid credentials" });
 
     // Special handling for super admin email
