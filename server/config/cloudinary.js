@@ -14,10 +14,14 @@ if (!process.env.CLOUDINARY_CLOUD_NAME || process.env.CLOUDINARY_CLOUD_NAME === 
 
 const storage = new CloudinaryStorage({
   cloudinary,
-  params: {
-    folder: "aura",
-    allowed_formats: ["jpg", "jpeg", "png", "webp"],
-    transformation: [{ width: 800, height: 800, crop: "limit", quality: "auto" }],
+  params: async (req, file) => {
+    const isVideo = file.mimetype.startsWith('video/');
+    return {
+      folder: "aura",
+      resource_type: isVideo ? "video" : "image",
+      transformation: isVideo ? [] : [{ width: 800, height: 800, crop: "limit", quality: "auto" }],
+      format: isVideo ? "webm" : undefined, // Force webm for recordings if needed, or keep original
+    };
   },
 });
 

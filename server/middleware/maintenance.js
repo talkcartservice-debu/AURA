@@ -3,8 +3,13 @@ import SystemSetting from '../models/SystemSetting.js';
 
 const maintenance = async (req, res, next) => {
   try {
-    // Skip maintenance check for admin routes, health check, and maintenance status check
-    if (req.path.startsWith('/api/admin') || req.path === '/api/health' || req.path === '/api/auth/maintenance-status') {
+    const path = req.path;
+    const isExcluded = 
+      path.includes('/admin') || 
+      path.includes('/health') || 
+      path.includes('/maintenance-status');
+
+    if (isExcluded) {
       return next();
     }
 

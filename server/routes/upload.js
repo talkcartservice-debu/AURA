@@ -4,16 +4,16 @@ import { upload } from "../config/cloudinary.js";
 
 const router = Router();
 
-// Upload a single image
+// Upload a single file (image or video)
 router.post("/", auth, (req, res, next) => {
   upload.single("file")(req, res, (err) => {
     if (err) {
       console.error("Multer/Cloudinary Upload Error:", err);
-      const isCloudinaryError = !process.env.CLOUDINARY_CLOUD_NAME || process.env.CLOUDINARY_CLOUD_NAME.includes('your_');
       return res.status(500).json({ 
-        error: isCloudinaryError ? "Cloudinary is not configured. Please set your credentials in .env" : "Failed to upload image. Please check your internet connection.", 
+        error: "Failed to upload file to Cloudinary.", 
         details: err.message,
-        suggestion: isCloudinaryError ? "Add CLOUDINARY_CLOUD_NAME, CLOUDINARY_API_KEY, and CLOUDINARY_API_SECRET to your server/.env file." : "Try a smaller file or different image format."
+        code: err.code,
+        suggestion: "Ensure your file is not too large and is a supported format. Check Cloudinary credentials in .env."
       });
     }
     if (!req.file) return res.status(400).json({ error: "No file uploaded" });
