@@ -19,10 +19,16 @@ router.get("/", auth, async (req, res) => {
 router.get("/:id/messages", auth, async (req, res) => {
   try {
     console.log(`GET /groups/${req.params.id}/messages - User: ${req.user.email}`);
+    
+    // Explicitly check for valid ObjectId to avoid crashes
+    if (req.params.id.length !== 24) {
+       return res.status(400).json({ error: "Invalid Group ID format" });
+    }
+
     const group = await Group.findById(req.params.id);
     if (!group) {
       console.warn(`Group not found: ${req.params.id}`);
-      return res.status(404).json({ error: "Group not found" });
+      return res.status(404).json({ error: `Group ${req.params.id} not found in this database. It may have been deleted.` });
     }
     
     // Check if user is a member
@@ -50,10 +56,14 @@ router.post("/:id/messages", auth, async (req, res) => {
       return res.status(400).json({ error: "Content or image_url is required" });
     }
 
+    if (req.params.id.length !== 24) {
+       return res.status(400).json({ error: "Invalid Group ID format" });
+    }
+
     const group = await Group.findById(req.params.id);
     if (!group) {
       console.warn(`Group not found: ${req.params.id}`);
-      return res.status(404).json({ error: "Group not found" });
+      return res.status(404).json({ error: `Group ${req.params.id} not found in this database.` });
     }
 
     if (!group.member_emails.includes(req.user.email)) {
