@@ -29,6 +29,34 @@ const GOAL_LABELS = {
   open_to_anything: "Open to anything",
 };
 
+const GENDER_LABELS = {
+  man: "Man",
+  woman: "Woman",
+  non_binary: "Non-binary",
+  other: "Other",
+};
+
+const LOOKING_FOR_LABELS = {
+  men: "Men",
+  women: "Women",
+  both: "Both",
+  others: "Others",
+};
+
+const LOOKING_FOR_OPTIONS = [
+  { value: "men", label: "Men" },
+  { value: "women", label: "Women" },
+  { value: "both", label: "Both" },
+  { value: "others", label: "Others" },
+];
+
+const GENDER_OPTIONS = [
+  { value: "man", label: "Man" },
+  { value: "woman", label: "Woman" },
+  { value: "non_binary", label: "Non-binary" },
+  { value: "other", label: "Other" },
+];
+
 const LIFESTYLE_LABELS = {
   smoking: { icon: Cigarette, label: "Smoking" },
   drinking: { icon: Wine, label: "Drinking" },
@@ -40,6 +68,8 @@ function getCompletionPercent(profile) {
   if (!profile) return 0;
   const fields = [
     !!profile.display_name,
+    !!profile.gender,
+    (profile.looking_for?.length || 0) > 0,
     !!profile.age,
     !!profile.bio,
     !!profile.location,
@@ -228,6 +258,23 @@ export default function MyProfile() {
                   <p className="text-sm text-gray-600 leading-relaxed">{profile.bio}</p>
                 </div>
               )}
+
+              <div className="grid grid-cols-2 gap-4">
+                {profile?.gender && (
+                  <div>
+                    <label className="text-xs font-semibold text-gray-400 uppercase mb-1 block text-left">Gender</label>
+                    <p className="text-sm text-gray-600 text-left">{GENDER_LABELS[profile.gender]}</p>
+                  </div>
+                )}
+                {profile?.looking_for?.length > 0 && (
+                  <div>
+                    <label className="text-xs font-semibold text-gray-400 uppercase mb-1 block text-left">Interested in</label>
+                    <p className="text-sm text-gray-600 text-left">
+                      {profile.looking_for.map(l => LOOKING_FOR_LABELS[l]).join(", ")}
+                    </p>
+                  </div>
+                )}
+              </div>
 
               {profile?.interests?.length > 0 && (
                 <div>
@@ -461,6 +508,37 @@ export default function MyProfile() {
           ) : (
             <div className="space-y-4">
               <Input value={form.display_name} onChange={e => set("display_name", e.target.value)} placeholder="Display name" className="rounded-xl" />
+              
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="text-xs font-semibold text-gray-500 uppercase mb-2 block text-left">I am a...</label>
+                  <div className="flex flex-wrap gap-2">
+                    {GENDER_OPTIONS.map((g) => (
+                      <button key={g.value} onClick={() => set("gender", g.value)}
+                        className={`px-3 py-1.5 rounded-full text-[10px] font-medium border transition-all ${form.gender === g.value ? "bg-rose-100 border-rose-400 text-rose-700" : "bg-gray-50 border-gray-200 text-gray-500"}`}
+                      >{g.label}</button>
+                    ))}
+                  </div>
+                </div>
+                <div>
+                  <label className="text-xs font-semibold text-gray-500 uppercase mb-2 block text-left">Interested in</label>
+                  <div className="flex flex-wrap gap-2">
+                    {LOOKING_FOR_OPTIONS.map((l) => {
+                      const active = form.looking_for?.includes(l.value);
+                      return (
+                        <button key={l.value} 
+                          onClick={() => {
+                            const current = form.looking_for || [];
+                            set("looking_for", active ? current.filter(i => i !== l.value) : [...current, l.value]);
+                          }}
+                          className={`px-3 py-1.5 rounded-full text-[10px] font-medium border transition-all ${active ? "bg-purple-100 border-purple-400 text-purple-700" : "bg-gray-50 border-gray-200 text-gray-500"}`}
+                        >{l.label}</button>
+                      );
+                    })}
+                  </div>
+                </div>
+              </div>
+
               <Input type="number" value={form.age || ""} onChange={e => set("age", parseInt(e.target.value) || "")} placeholder="Age" className="rounded-xl" />
               <Input value={form.location || ""} onChange={e => set("location", e.target.value)} placeholder="Location" className="rounded-xl" />
               <div className="flex items-center gap-2">

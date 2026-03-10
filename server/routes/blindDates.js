@@ -106,10 +106,30 @@ router.post("/start", auth, async (req, res) => {
     });
     busyEmails.add(req.user.email);
 
+    // Build gender compatibility query
+    const genderQuery = {};
+    if (myProfile.gender && myProfile.looking_for) {
+      const lookingForGenders = [];
+      if (myProfile.looking_for.includes("men")) lookingForGenders.push("man");
+      if (myProfile.looking_for.includes("women")) lookingForGenders.push("woman");
+      if (myProfile.looking_for.includes("both")) lookingForGenders.push("man", "woman");
+      if (myProfile.looking_for.includes("others")) lookingForGenders.push("non_binary", "other");
+      
+      genderQuery.gender = { $in: lookingForGenders };
+      
+      const myGenderCategory = 
+        myProfile.gender === "man" ? "men" : 
+        myProfile.gender === "woman" ? "women" : 
+        "others";
+      
+      genderQuery.looking_for = { $in: [myGenderCategory, "both"] };
+    }
+
     const candidate = await UserProfile.findOne({
       user_email: { $nin: [...busyEmails] },
       blind_date_available: true,
       profile_complete: true,
+      ...genderQuery
     });
 
     if (!candidate) {

@@ -51,7 +51,27 @@ router.get("/daily", auth, async (req, res) => {
       const blockedEmails = myProfile.blocked_emails || [];
       const excludeEmails = [...new Set([req.user.email, ...previousMatches, ...mutualEmails, ...blockedEmails])];
 
-      // Build query based on intent matching
+      // Build query based on intent matching and gender preferences
+      const genderQuery = {};
+      if (myProfile.gender && myProfile.looking_for) {
+        // Find users whose gender matches my looking_for preference
+        const lookingForGenders = [];
+        if (myProfile.looking_for.includes("men")) lookingForGenders.push("man");
+        if (myProfile.looking_for.includes("women")) lookingForGenders.push("woman");
+        if (myProfile.looking_for.includes("both")) lookingForGenders.push("man", "woman");
+        if (myProfile.looking_for.includes("others")) lookingForGenders.push("non_binary", "other");
+        
+        genderQuery.gender = { $in: lookingForGenders };
+        
+        // Find users who are looking for my gender
+        const myGenderCategory = 
+          myProfile.gender === "man" ? "men" : 
+          myProfile.gender === "woman" ? "women" : 
+          "others";
+        
+        genderQuery.looking_for = { $in: [myGenderCategory, "both"] };
+      }
+
       let intentQuery = {};
       if (useIntentMatching) {
         // Casual mode: match only with compatible intents
@@ -76,10 +96,11 @@ router.get("/daily", auth, async (req, res) => {
         profile_complete: true,
         is_incognito: { $ne: true },
         ...intentQuery,
+        ...genderQuery,
       });
 
-      // If intent filter is too strict and returns nothing, relax it once
-      if (rawCandidates.length === 0 && Object.keys(intentQuery).length > 0) {
+      // If filters are too strict and return nothing, relax them once
+      if (rawCandidates.length === 0 && (Object.keys(intentQuery).length > 0 || Object.keys(genderQuery).length > 0)) {
         rawCandidates = await UserProfile.find({
           user_email: { $nin: excludeEmails },
           profile_complete: true,

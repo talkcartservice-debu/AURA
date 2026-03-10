@@ -4,6 +4,16 @@ const userProfileSchema = new mongoose.Schema(
   {
     user_email: { type: String, required: true, unique: true, index: true },
     display_name: { type: String, default: "" },
+    gender: { 
+      type: String, 
+      enum: ["man", "woman", "non_binary", "other"],
+      default: "other"
+    },
+    looking_for: {
+      type: [String],
+      enum: ["men", "women", "both", "others"],
+      default: ["both"]
+    },
     age: { type: Number },
     bio: { type: String, default: "" },
     // Enhanced location tracking

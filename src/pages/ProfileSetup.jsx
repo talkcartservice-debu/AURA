@@ -20,6 +20,20 @@ const GOALS = [
   { value: "open_to_anything", label: "Open to anything" },
 ];
 
+const GENDERS = [
+  { value: "man", label: "Man" },
+  { value: "woman", label: "Woman" },
+  { value: "non_binary", label: "Non-binary" },
+  { value: "other", label: "Other" },
+];
+
+const LOOKING_FOR = [
+  { value: "men", label: "Men" },
+  { value: "women", label: "Women" },
+  { value: "both", label: "Both" },
+  { value: "others", label: "Others" },
+];
+
 export default function ProfileSetup() {
   const { user } = useAuth();
   const navigate = useNavigate();
@@ -27,6 +41,8 @@ export default function ProfileSetup() {
   const [saving, setSaving] = useState(false);
   const [form, setForm] = useState({
     display_name: "",
+    gender: "",
+    looking_for: [],
     age: "",
     bio: "",
     location: "",
@@ -37,6 +53,13 @@ export default function ProfileSetup() {
   });
 
   const set = (k, v) => setForm((f) => ({ ...f, [k]: v }));
+
+  const toggleLookingFor = (val) => {
+    set("looking_for", form.looking_for.includes(val) 
+      ? form.looking_for.filter(i => i !== val)
+      : [...form.looking_for, val]
+    );
+  };
 
   async function handleFinish() {
     setSaving(true);
@@ -59,6 +82,18 @@ export default function ProfileSetup() {
     <div key={0} className="space-y-4">
       <h2 className="text-xl font-bold">Let's get to know you</h2>
       <Input placeholder="Display name" value={form.display_name} onChange={(e) => set("display_name", e.target.value)} className="rounded-xl" />
+      
+      <div>
+        <label className="text-xs font-semibold text-gray-500 uppercase mb-2 block text-left">I am a...</label>
+        <div className="flex flex-wrap gap-2">
+          {GENDERS.map((g) => (
+            <button key={g.value} onClick={() => set("gender", g.value)}
+              className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-all ${form.gender === g.value ? "bg-rose-100 border-rose-400 text-rose-700" : "bg-gray-50 border-gray-200 text-gray-500"}`}
+            >{g.label}</button>
+          ))}
+        </div>
+      </div>
+
       <Input type="number" placeholder="Age" value={form.age} onChange={(e) => set("age", e.target.value)} className="rounded-xl" min={18} />
       <Input placeholder="City / Location" value={form.location} onChange={(e) => set("location", e.target.value)} className="rounded-xl" />
       <Textarea placeholder="Write a short bio..." value={form.bio} onChange={(e) => set("bio", e.target.value)} className="rounded-xl resize-none" rows={3} />
@@ -76,8 +111,20 @@ export default function ProfileSetup() {
     // Step 3: Values + Goals
     <div key={3} className="space-y-4">
       <h2 className="text-xl font-bold">What are you looking for?</h2>
+      
       <div>
-        <label className="text-xs font-semibold text-gray-500 uppercase mb-2 block">Relationship Goal</label>
+        <label className="text-xs font-semibold text-gray-500 uppercase mb-2 block text-left">Interested in</label>
+        <div className="flex flex-wrap gap-2">
+          {LOOKING_FOR.map((l) => (
+            <button key={l.value} onClick={() => toggleLookingFor(l.value)}
+              className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-all ${form.looking_for.includes(l.value) ? "bg-purple-100 border-purple-400 text-purple-700" : "bg-gray-50 border-gray-200 text-gray-500"}`}
+            >{l.label}</button>
+          ))}
+        </div>
+      </div>
+
+      <div>
+        <label className="text-xs font-semibold text-gray-500 uppercase mb-2 block text-left">Relationship Goal</label>
         <div className="flex flex-wrap gap-2">
           {GOALS.map((g) => (
             <button key={g.value} onClick={() => set("relationship_goals", g.value)}
@@ -105,11 +152,11 @@ export default function ProfileSetup() {
           <Button variant="outline" onClick={() => setStep(step - 1)} className="flex-1 rounded-2xl">Back</Button>
         )}
         {step < steps.length - 1 ? (
-          <Button onClick={() => setStep(step + 1)} disabled={step === 0 && !form.display_name}
+          <Button onClick={() => setStep(step + 1)} disabled={step === 0 && (!form.display_name || !form.gender)}
             className="flex-1 rounded-2xl bg-gradient-to-r from-rose-500 to-purple-600 text-white"
           >Next</Button>
         ) : (
-          <Button onClick={handleFinish} disabled={saving}
+          <Button onClick={handleFinish} disabled={saving || form.looking_for.length === 0}
             className="flex-1 rounded-2xl bg-gradient-to-r from-rose-500 to-purple-600 text-white"
           >{saving ? <Loader2 className="w-4 h-4 animate-spin" /> : "Finish"}</Button>
         )}
