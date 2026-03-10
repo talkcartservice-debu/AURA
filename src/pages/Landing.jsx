@@ -374,6 +374,19 @@ export default function Landing() {
                   : "Setup Fingerprint"}
             </Button>
 
+            {/* PWA Install Button inside card */}
+            {isInstallable && (
+              <Button
+                type="button"
+                onClick={installApp}
+                variant="outline"
+                className="w-full mt-3 rounded-2xl h-11 border-2 border-rose-100 hover:bg-rose-50 hover:border-rose-200 transition-all flex items-center justify-center gap-2"
+              >
+                <Download className="w-4 h-4 text-rose-500" />
+                <span className="font-bold text-rose-600">Install AURAsync</span>
+              </Button>
+            )}
+
             {/* Login/Signup Toggle */}
             <div className="flex justify-center mt-6">
               <p className="text-sm text-gray-500">
@@ -390,29 +403,6 @@ export default function Landing() {
           </>
         </form>
       </div>
-
-      {/* PWA Install Section */}
-      {isInstallable && (
-        <div className="mt-8 w-full max-w-sm">
-          <button
-            onClick={installApp}
-            className="w-full flex items-center justify-between bg-white/10 backdrop-blur-md border border-white/20 rounded-2xl p-4 text-white hover:bg-white/20 transition-all group"
-          >
-            <div className="flex items-center gap-3 text-left">
-              <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center shadow-sm group-hover:scale-110 transition-transform">
-                <Download className="w-5 h-5 text-rose-500" />
-              </div>
-              <div>
-                <p className="text-sm font-bold">Install AURAsync</p>
-                <p className="text-[10px] text-rose-100">Get the full app experience</p>
-              </div>
-            </div>
-            <div className="bg-white/20 rounded-full px-3 py-1 text-[10px] font-bold uppercase tracking-wider">
-              Install
-            </div>
-          </button>
-        </div>
-      )}
 
       {/* Biometric Modal */}
       <BiometricModal

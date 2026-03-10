@@ -516,6 +516,15 @@ export default function MyProfile() {
           Security Settings
         </h3>
         <BiometricSettings />
+        {isInstallable && (
+          <Button
+            onClick={installApp}
+            className="w-full mt-3 rounded-2xl h-12 bg-rose-50 border-2 border-rose-200 text-rose-600 font-bold hover:bg-rose-100 transition-all flex items-center justify-center gap-2 shadow-sm"
+          >
+            <Download className="w-5 h-5" />
+            Install AURAsync App
+          </Button>
+        )}
       </div>
 
               <div className="flex gap-2">
