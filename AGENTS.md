@@ -4,7 +4,7 @@ This file provides guidance when working with code in this repository.
 
 ## Project Overview
 
-AURA is a fully independent dating and social matching web app. The frontend is a React SPA and the backend is a self-hosted Express + MongoDB API. There are no external platform dependencies or low-code builders.
+AURAsync is a fully independent dating and social matching web app. The frontend is a React SPA and the backend is a self-hosted Express + MongoDB API. There are no external platform dependencies or low-code builders.
 
 ## Development Commands
 
@@ -26,7 +26,7 @@ There is no test framework configured in this project.
 Create `server/.env` based on `server/.env.example`:
 
 ```
-MONGODB_URI=mongodb://localhost:27017/aura
+MONGODB_URI=mongodb://localhost:27017/aurasync
 JWT_SECRET=change_this_to_a_random_secret
 CLOUDINARY_CLOUD_NAME=your_cloud_name
 CLOUDINARY_API_KEY=your_api_key

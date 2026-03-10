@@ -502,7 +502,7 @@ export default function MyProfile() {
               <div className="flex gap-2">
                 {!profile?.is_verified && <Button onClick={() => navigate("/verification")} variant="outline" className="flex-1 rounded-xl text-xs">Verify Identity</Button>}
                 {!profile?.is_personality_verified && <Button onClick={() => navigate("/verification")} variant="outline" className="flex-1 rounded-xl text-xs">Personality Quiz</Button>}
-                {!isSilverPremium && <Button onClick={() => navigate("/premium")} variant="outline" className="flex-1 rounded-xl text-xs bg-gradient-to-r from-purple-500 to-rose-500 text-white border-0">AURAsoul premium ✨</Button>}
+                {!isSilverPremium && <Button onClick={() => navigate("/premium")} variant="outline" className="flex-1 rounded-xl text-xs bg-gradient-to-r from-purple-500 to-rose-500 text-white border-0">AURAsyncsoul premium ✨</Button>}
               </div>
             </div>
           ) : (

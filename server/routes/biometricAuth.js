@@ -53,7 +53,7 @@ router.post("/register", async (req, res) => {
     // Create public key credential creation options
     const publicKey = {
       rp: {
-        name: "AURA Dating",
+        name: "AURAsync",
         id: getRpId(req),
       },
       user: {

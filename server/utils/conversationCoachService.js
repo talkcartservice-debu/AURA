@@ -168,7 +168,7 @@ export async function generateProfileReview(userProfile) {
   if (!userProfile) return null;
 
   const prompt = `
-    You are AURA's AI Profile Consultant. Review the following dating profile and provide professional, actionable feedback.
+    You are AURAsync's AI Profile Consultant. Review the following dating profile and provide professional, actionable feedback.
     
     User Profile:
     - Display Name: ${userProfile.display_name}
@@ -307,7 +307,7 @@ ${otherProfile.display_name}'s Profile:
     }[style] || style;
 
     const geminiPrompt = `
-You are AURA's AI Relationship Coach. You are a real person named "Coach" who has years of experience in emotional intelligence and dating dynamics.
+You are AURAsync's AI Relationship Coach. You are a real person named "Coach" who has years of experience in emotional intelligence and dating dynamics.
 
 User emotional analysis:
 - Current Mood: ${analysis.mood}

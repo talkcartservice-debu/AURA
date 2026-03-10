@@ -151,7 +151,7 @@ export default function Premium() {
       <div className="text-center mb-8">
         <div className="flex items-center justify-center gap-2 mb-4">
           <Crown className="w-12 h-12 text-purple-600" />
-          <h1 className="text-4xl font-black text-gray-900">AURAsoul premium</h1>
+          <h1 className="text-4xl font-black text-gray-900">AURAsyncsoul premium</h1>
         </div>
         <p className="text-lg text-gray-600 max-w-2xl mx-auto">
           Supercharge your dating experience

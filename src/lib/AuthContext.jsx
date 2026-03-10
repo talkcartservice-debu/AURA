@@ -10,14 +10,14 @@ export function AuthProvider({ children }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const token = localStorage.getItem("aura_token");
+    const token = localStorage.getItem("aurasync_token");
     if (token) {
       authService
         .me()
         .then((data) => setUser(data))
         .catch(() => {
-          localStorage.removeItem("aura_token");
-          localStorage.removeItem("aura_email");
+          localStorage.removeItem("aurasync_token");
+          localStorage.removeItem("aurasync_email");
         })
         .finally(() => setLoading(false));
     } else {
@@ -48,8 +48,8 @@ export function AuthProvider({ children }) {
 
   const login = async (email, password) => {
     const data = await authService.login({ email, password });
-    localStorage.setItem("aura_token", data.token);
-    localStorage.setItem("aura_email", data.email);
+    localStorage.setItem("aurasync_token", data.token);
+    localStorage.setItem("aurasync_email", data.email);
     setUser({
       email: data.email,
       id: data.id,
@@ -66,8 +66,8 @@ export function AuthProvider({ children }) {
       display_name: displayName || username,
       username,
     });
-    localStorage.setItem("aura_token", data.token);
-    localStorage.setItem("aura_email", data.email);
+    localStorage.setItem("aurasync_token", data.token);
+    localStorage.setItem("aurasync_email", data.email);
     setUser({
       email: data.email,
       id: data.id,
@@ -78,12 +78,12 @@ export function AuthProvider({ children }) {
   };
 
   const logout = () => {
-    localStorage.removeItem("aura_token");
-    localStorage.removeItem("aura_email");
+    localStorage.removeItem("aurasync_token");
+    localStorage.removeItem("aurasync_email");
     setUser(null);
   };
 
-  const getToken = () => localStorage.getItem("aura_token");
+  const getToken = () => localStorage.getItem("aurasync_token");
 
   return (
     <AuthContext.Provider value={{ user, loading, login, signup, logout, getToken }}>

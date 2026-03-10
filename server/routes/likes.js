@@ -91,7 +91,7 @@ router.post("/", auth, async (req, res) => {
         await Promise.all([
           sendNotificationToUser(to_email, {
             title: "New Match! ❤️",
-            body: "You have a new mutual match on AURAsoul!",
+            body: "You have a new mutual match on AURAsync!",
             data: { type: "MATCH", match_id: match._id.toString() }
           }),
           sendNotificationToUser(req.user.email, {

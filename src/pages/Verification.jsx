@@ -94,7 +94,7 @@ export default function Verification() {
                   <h2 className="text-xl font-bold text-gray-900 mb-2">Verify Your Identity</h2>
                   <p className="text-gray-500 text-sm">
                     Take a clear selfie in good lighting. We’ll compare it to your profile photos to
-                    keep AURA safe and authentic.
+                    keep AURAsync safe and authentic.
                   </p>
                 </div>
 

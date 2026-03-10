@@ -40,7 +40,7 @@ export default function DeepVerification() {
     queryFn: profileService.getMe 
   });
   
-  const verificationPhrase = "I verify my AURA profile identity today";
+  const verificationPhrase = "I verify my AURAsync profile identity today";
 
   // States for verification data
   const [phone, setPhone] = useState("");

@@ -161,8 +161,8 @@ export default function Landing() {
 
   async function handleBiometricSuccess(result) {
     if (result.token) {
-      localStorage.setItem("aura_token", result.token);
-      localStorage.setItem("aura_email", result.email);
+      localStorage.setItem("aurasync_token", result.token);
+      localStorage.setItem("aurasync_email", result.email);
       toast.success("Welcome back!");
       navigate("/discover");
     }
@@ -185,7 +185,7 @@ export default function Landing() {
         <div className="w-16 h-16 bg-white/20 backdrop-blur-sm rounded-3xl flex items-center justify-center mx-auto mb-4">
           <Heart className="w-8 h-8 text-white fill-white" />
         </div>
-        <h1 className="text-4xl font-black text-white mb-2">AURA</h1>
+        <h1 className="text-4xl font-black text-white mb-2">AURAsync</h1>
         <p className="text-rose-100 text-sm">Find your perfect match</p>
       </div>
 

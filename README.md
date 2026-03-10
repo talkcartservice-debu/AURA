@@ -1,4 +1,4 @@
-# AURA - Modern Dating & Social Matching Platform 💕
+# AURAsync - Modern Dating & Social Matching Platform 💕
 
 A full-stack dating and social matching web application built with React, Express, MongoDB, and advanced real-time features.
 
@@ -112,7 +112,7 @@ npm run dev
 
 Create `server/.env`:
 ```env
-MONGODB_URI=mongodb://localhost:27017/aura
+MONGODB_URI=mongodb://localhost:27017/aurasync
 JWT_SECRET=your_jwt_secret_here
 CLOUDINARY_CLOUD_NAME=your_cloudinary_name
 CLOUDINARY_API_KEY=your_api_key
@@ -237,7 +237,7 @@ This project is proprietary software. All rights reserved.
 
 ## 👥 Team
 
-Built by the AURA development team
+Built by the AURAsync development team
 
 ## 🗺️ Roadmap
 
@@ -252,7 +252,7 @@ Built by the AURA development team
 
 ## 📞 Support
 
-For support, email support@aura.com or join our Discord community.
+For support, email support@aurasync.com or join our Discord community.
 
 ## 🙏 Acknowledgments
 
