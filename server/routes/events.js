@@ -278,4 +278,51 @@ router.delete("/:id/messages/:messageId", auth, async (req, res) => {
   }
 });
 
+// Delete Event (Creator only)
+router.delete("/:id", auth, async (req, res) => {
+  try {
+    const event = await Event.findById(req.params.id);
+    if (!event) return res.status(404).json({ error: "Event not found" });
+
+    // Only creator can delete
+    if (event.creator_email !== req.user.email) {
+      return res.status(403).json({ error: "Only the event creator can delete this event" });
+    }
+
+    // Clean up: delete event messages
+    await EventMessage.deleteMany({ event_id: req.params.id });
+    
+    // Delete the event itself
+    await Event.findByIdAndDelete(req.params.id);
+
+    res.json({ message: "Event and its messages deleted successfully" });
+  } catch (err) {
+    console.error("Delete event error:", err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Edit Event (Creator only)
+router.put("/:id", auth, async (req, res) => {
+  try {
+    const event = await Event.findById(req.params.id);
+    if (!event) return res.status(404).json({ error: "Event not found" });
+
+    if (event.creator_email !== req.user.email) {
+      return res.status(403).json({ error: "Only the event creator can edit this event" });
+    }
+
+    const updatedEvent = await Event.findByIdAndUpdate(
+      req.params.id,
+      { $set: req.body },
+      { new: true }
+    );
+
+    res.json(updatedEvent);
+  } catch (err) {
+    console.error("Edit event error:", err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 export default router;

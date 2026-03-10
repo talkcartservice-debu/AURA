@@ -1,11 +1,11 @@
-import { Users, MapPin, MessageCircle, Clock, Check, X as XIcon, Calendar, ArrowRight } from "lucide-react";
+import { Users, MapPin, MessageCircle, Clock, Check, X as XIcon, Calendar, ArrowRight, Trash2, Edit2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useQuery } from "@tanstack/react-query";
 import { eventService } from "@/api/entities";
 import { useNavigate } from "react-router-dom";
 
-export default function GroupCard({ group, userEmail, onJoin, onLeave, onCreateEvent, onOpenChat, onManageRequests }) {
+export default function GroupCard({ group, userEmail, onJoin, onLeave, onCreateEvent, onOpenChat, onManageRequests, onDelete, onEdit }) {
   const navigate = useNavigate();
   const isMember = (group.member_emails || []).includes(userEmail);
   const isPending = (group.pending_member_emails || []).includes(userEmail);
@@ -175,6 +175,29 @@ export default function GroupCard({ group, userEmail, onJoin, onLeave, onCreateE
             <Users className="w-3.5 h-3.5 mr-1" />
             Requests ({pendingCount})
           </Button>
+        )}
+
+        {isCreator && onDelete && (
+          <div className="flex gap-1">
+            {onEdit && (
+              <Button
+                onClick={() => onEdit(group)}
+                size="sm"
+                variant="ghost"
+                className="w-8 h-8 p-0 rounded-lg text-gray-400 hover:text-purple-600 hover:bg-purple-50"
+              >
+                <Edit2 className="w-3.5 h-3.5" />
+              </Button>
+            )}
+            <Button
+              onClick={() => onDelete(group._id)}
+              size="sm"
+              variant="ghost"
+              className="w-8 h-8 p-0 rounded-lg text-gray-400 hover:text-rose-600 hover:bg-rose-50"
+            >
+              <Trash2 className="w-3.5 h-3.5" />
+            </Button>
+          </div>
         )}
       </div>
     </div>

@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { groupService } from "@/api/entities";
+import { groupService, eventService } from "@/api/entities";
 import { useAuth } from "@/lib/AuthContext";
 import GroupCard from "@/components/groups/GroupCard";
 import CreateGroupModal from "@/components/groups/CreateGroupModal";
@@ -20,6 +20,7 @@ export default function Groups() {
   const { user } = useAuth();
   const qc = useQueryClient();
   const [showCreate, setShowCreate] = useState(false);
+  const [editingGroup, setEditingGroup] = useState(null);
   const [showEvent, setShowEvent] = useState(null);
   const [activeChatGroup, setActiveChatGroup] = useState(null);
   const [activeRequestsGroup, setActiveRequestsGroup] = useState(null);
@@ -31,13 +32,24 @@ export default function Groups() {
 
   async function handleCreateGroup(data) {
     try {
-      await groupService.create(data);
+      if (editingGroup) {
+        await groupService.update(editingGroup._id, data);
+        toast.success("Group updated!");
+      } else {
+        await groupService.create(data);
+        toast.success("Group created!");
+      }
       qc.invalidateQueries(["groups"]);
       setShowCreate(false);
-      toast.success("Group created!");
+      setEditingGroup(null);
     } catch (err) {
-      toast.error(err.response?.data?.error || "Failed to create group");
+      toast.error(err.response?.data?.error || `Failed to ${editingGroup ? 'update' : 'create'} group`);
     }
+  }
+
+  async function handleEditGroup(group) {
+    setEditingGroup(group);
+    setShowCreate(true);
   }
 
   async function handleJoin(group) {
@@ -57,6 +69,17 @@ export default function Groups() {
       toast.success("Left group");
     } catch (err) {
       toast.error("Failed to leave group");
+    }
+  }
+
+  async function handleDeleteGroup(groupId) {
+    if (!confirm("Are you sure you want to delete this group? All messages will be permanently removed.")) return;
+    try {
+      await groupService.delete(groupId);
+      qc.invalidateQueries(["groups"]);
+      toast.success("Group deleted successfully");
+    } catch (err) {
+      toast.error(err.response?.data?.error || "Failed to delete group");
     }
   }
 
@@ -97,13 +120,12 @@ export default function Groups() {
 
   async function handleCreateEvent(data) {
     try {
-      // Assuming groupService.createEvent or eventService.create works with groupId
-      // For now we use eventService indirectly via create modal which handles it
-      qc.invalidateQueries(["events"]); // Invalidate global events
+      await eventService.create(data);
+      qc.invalidateQueries(["events"]);
       setShowEvent(null);
       toast.success("Event created!");
     } catch (err) {
-      toast.error("Failed to create event");
+      toast.error(err.response?.data?.error || "Failed to create event");
     }
   }
 
@@ -152,6 +174,8 @@ export default function Groups() {
               onCreateEvent={(groupId) => setShowEvent(groupId)} 
               onOpenChat={(group) => setActiveChatGroup(group)}
               onManageRequests={(group) => setActiveRequestsGroup(group)}
+              onDelete={handleDeleteGroup}
+              onEdit={handleEditGroup}
             />
           ))}
           {(!groups || groups.length === 0) && (
@@ -171,8 +195,12 @@ export default function Groups() {
         <CreateGroupModal 
           userEmail={user?.email} 
           categoryEmoji={CATEGORY_EMOJI} 
-          onClose={() => setShowCreate(false)} 
+          onClose={() => {
+            setShowCreate(false);
+            setEditingGroup(null);
+          }} 
           onCreate={handleCreateGroup} 
+          initialData={editingGroup}
         />
       )}
       

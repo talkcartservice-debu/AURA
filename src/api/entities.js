@@ -55,6 +55,8 @@ export const groupService = {
   rejectRequest: (id, user_email) => api.post(`/groups/${id}/requests/reject`, { user_email }).then((r) => r.data),
   getMessages: (id) => api.get(`/groups/${id}/messages`).then((r) => r.data),
   sendMessage: (id, data) => api.post(`/groups/${id}/messages`, data).then((r) => r.data),
+  delete: (id) => api.delete(`/groups/${id}`).then((r) => r.data),
+  update: (id, data) => api.put(`/groups/${id}`, data).then((r) => r.data),
 };
 
 // Events
@@ -69,6 +71,8 @@ export const eventService = {
   sendMessage: (id, data) => api.post(`/events/${id}/messages`, data).then((r) => r.data),
   deleteMessage: (eventId, messageId) => api.delete(`/events/${eventId}/messages/${messageId}`).then((r) => r.data),
   editMessage: (eventId, messageId, content) => api.put(`/events/${eventId}/messages/${messageId}`, { content }).then((r) => r.data),
+  delete: (id) => api.delete(`/events/${id}`).then((r) => r.data),
+  update: (id, data) => api.put(`/events/${id}`, data).then((r) => r.data),
 };
 
 // Verification

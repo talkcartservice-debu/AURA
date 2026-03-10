@@ -39,18 +39,21 @@ export default function CreateGroupModal({
   categoryEmoji,
   onClose,
   onCreate,
+  initialData,
 }) {
-  const [form, setForm] = useState({
-    name: "",
-    description: "",
-    category: "social",
-    cover_emoji: "🎉",
-    tags: [],
-    location: "",
-    event_date: "",
-    max_members: "",
-    is_public: true,
-  });
+  const [form, setForm] = useState(
+    initialData || {
+      name: "",
+      description: "",
+      category: "social",
+      cover_emoji: "🎉",
+      tags: [],
+      location: "",
+      event_date: "",
+      max_members: "",
+      is_public: true,
+    },
+  );
   const [tagInput, setTagInput] = useState("");
   const [saving, setSaving] = useState(false);
 
@@ -67,10 +70,14 @@ export default function CreateGroupModal({
   const handleSubmit = async () => {
     if (!form.name) return;
     setSaving(true);
-    await onCreate({
-      ...form,
-      max_members: form.max_members ? parseInt(form.max_members) : undefined,
-    });
+    try {
+      await onCreate({
+        ...form,
+        max_members: form.max_members ? parseInt(form.max_members) : undefined,
+      });
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
@@ -83,7 +90,9 @@ export default function CreateGroupModal({
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between px-6 pt-6 pb-4 border-b border-gray-100">
-          <h2 className="text-xl font-bold text-gray-900">Create a Group</h2>
+          <h2 className="text-xl font-bold text-gray-900">
+            {initialData ? "Edit Group" : "Create a Group"}
+          </h2>
           <button
             onClick={onClose}
             className="p-1.5 text-gray-400 hover:text-gray-600 rounded-full hover:bg-gray-100"
@@ -255,7 +264,13 @@ export default function CreateGroupModal({
             disabled={!form.name || saving}
             className="flex-1 rounded-2xl bg-gradient-to-r from-rose-500 to-purple-600 text-white"
           >
-            {saving ? "Creating..." : "Create Group"}
+            {saving
+              ? initialData
+                ? "Saving..."
+                : "Creating..."
+              : initialData
+                ? "Save Changes"
+                : "Create Group"}
           </Button>
         </div>
       </div>

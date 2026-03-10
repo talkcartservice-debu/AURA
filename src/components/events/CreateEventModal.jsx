@@ -11,24 +11,27 @@ export default function CreateEventModal({
   onClose,
   onCreate,
   suggestAsCommunity = false, // New prop for community suggestions
+  initialData,
 }) {
-  const [form, setForm] = useState({
-    title: "",
-    description: "",
-    event_date: "",
-    event_time: "",
-    location: "",
-    capacity: "",
-    cover_emoji: "🎉",
-    is_public: true,
-    community_suggested: false,
-    event_tags: [],
-  });
+  const [form, setForm] = useState(
+    initialData || {
+      title: "",
+      description: "",
+      event_date: "",
+      event_time: "",
+      location: "",
+      capacity: "",
+      cover_emoji: "🎉",
+      is_public: true,
+      community_suggested: false,
+      event_tags: [],
+    },
+  );
   const [saving, setSaving] = useState(false);
   const set = (k, v) => setForm((f) => ({ ...f, [k]: v }));
 
   const EMOJIS = ["🎉", "🎶", "🍕", "🏃", "📚", "🎨", "🌿", "🏔️", "🎭", "🎯"];
-  
+
   const EVENT_TAGS = [
     { value: "first-date-friendly", label: "First Date Friendly", icon: "💕" },
     { value: "romantic", label: "Romantic", icon: "🌹" },
@@ -39,11 +42,11 @@ export default function CreateEventModal({
   ];
 
   const toggleTag = (tag) => {
-    setForm(f => ({
+    setForm((f) => ({
       ...f,
-      event_tags: f.event_tags.includes(tag) 
-        ? f.event_tags.filter(t => t !== tag)
-        : [...f.event_tags, tag]
+      event_tags: f.event_tags.includes(tag)
+        ? f.event_tags.filter((t) => t !== tag)
+        : [...f.event_tags, tag],
     }));
   };
 
@@ -51,21 +54,26 @@ export default function CreateEventModal({
     e.preventDefault();
     if (!form.title || !form.event_date) return;
     setSaving(true);
-    await onCreate({
-      ...form,
-      group_id: groupId,
-      creator_email: userEmail,
-      rsvp_emails: [userEmail],
-      capacity: form.capacity ? parseInt(form.capacity) : null,
-    });
-    setSaving(false);
+    try {
+      await onCreate({
+        ...form,
+        group_id: groupId || form.group_id,
+        creator_email: userEmail,
+        rsvp_emails: initialData ? form.rsvp_emails : [userEmail],
+        capacity: form.capacity ? parseInt(form.capacity) : null,
+      });
+    } finally {
+      setSaving(false);
+    }
   }
 
   return (
     <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
       <div className="bg-white rounded-3xl shadow-2xl w-full max-w-md max-h-[90vh] overflow-y-auto">
         <div className="flex items-center justify-between p-6 border-b border-gray-100">
-          <h2 className="text-xl font-bold text-gray-900">Create Event</h2>
+          <h2 className="text-xl font-bold text-gray-900">
+            {initialData ? "Edit Event" : "Create Event"}
+          </h2>
           <button
             onClick={onClose}
             className="p-2 text-gray-400 hover:text-gray-600 rounded-full hover:bg-gray-100"
@@ -81,8 +89,12 @@ export default function CreateEventModal({
                 <div className="flex items-center gap-2">
                   <Sparkles className="w-4 h-4 text-purple-600" />
                   <div>
-                    <p className="text-sm font-semibold text-gray-900">Share with Community</p>
-                    <p className="text-xs text-gray-500">Make this visible to all AURA users</p>
+                    <p className="text-sm font-semibold text-gray-900">
+                      Share with Community
+                    </p>
+                    <p className="text-xs text-gray-500">
+                      Make this visible to all AURA users
+                    </p>
                   </div>
                 </div>
                 <Switch
@@ -183,7 +195,7 @@ export default function CreateEventModal({
               min={1}
             />
           </div>
-          
+
           {/* Event Tags */}
           <div>
             <label className="text-xs font-semibold text-gray-500 uppercase mb-2 block">
@@ -206,7 +218,7 @@ export default function CreateEventModal({
               ))}
             </div>
           </div>
-          
+
           <div className="flex gap-3 pt-2">
             <Button
               type="button"
@@ -221,7 +233,13 @@ export default function CreateEventModal({
               disabled={saving}
               className="flex-1 rounded-2xl bg-gradient-to-r from-rose-500 to-purple-600 text-white"
             >
-              {saving ? "Creating..." : "Create Event"}
+              {saving
+                ? initialData
+                  ? "Saving..."
+                  : "Creating..."
+                : initialData
+                  ? "Save Changes"
+                  : "Create Event"}
             </Button>
           </div>
         </form>

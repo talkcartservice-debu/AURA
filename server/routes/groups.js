@@ -215,4 +215,51 @@ router.post("/:id/leave", auth, async (req, res) => {
   }
 });
 
+// Delete Group (Creator only)
+router.delete("/:id", auth, async (req, res) => {
+  try {
+    const group = await Group.findById(req.params.id);
+    if (!group) return res.status(404).json({ error: "Group not found" });
+
+    // Only creator can delete
+    if (group.creator_email !== req.user.email) {
+      return res.status(403).json({ error: "Only the group creator can delete this group" });
+    }
+
+    // Clean up: delete group messages
+    await GroupMessage.deleteMany({ group_id: req.params.id });
+    
+    // Optionally delete the group itself
+    await Group.findByIdAndDelete(req.params.id);
+
+    res.json({ message: "Group and its messages deleted successfully" });
+  } catch (err) {
+    console.error("Delete group error:", err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Edit Group (Creator only)
+router.put("/:id", auth, async (req, res) => {
+  try {
+    const group = await Group.findById(req.params.id);
+    if (!group) return res.status(404).json({ error: "Group not found" });
+
+    if (group.creator_email !== req.user.email) {
+      return res.status(403).json({ error: "Only the group creator can edit this group" });
+    }
+
+    const updatedGroup = await Group.findByIdAndUpdate(
+      req.params.id,
+      { $set: req.body },
+      { new: true }
+    );
+
+    res.json(updatedGroup);
+  } catch (err) {
+    console.error("Edit group error:", err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 export default router;

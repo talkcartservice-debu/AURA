@@ -1,9 +1,9 @@
-import { Calendar, Clock, MapPin, Users, CheckCircle, Sparkles, Heart, ThumbsUp, MessageCircle } from "lucide-react";
+import { Calendar, Clock, MapPin, Users, CheckCircle, Sparkles, Heart, ThumbsUp, MessageCircle, Trash2, Edit2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { format, parseISO } from "date-fns";
 import { useNavigate } from "react-router-dom";
 
-export default function EventCard({ event, userEmail, onRSVP, onUpvote, showAIInsights = false, onShowAttendees, onOpenChat, onManageRequests }) {
+export default function EventCard({ event, userEmail, onRSVP, onUpvote, showAIInsights = false, onShowAttendees, onOpenChat, onManageRequests, onDelete, onEdit }) {
   const navigate = useNavigate();
   const isGoing = (event.rsvp_emails || []).includes(userEmail);
   const isPending = (event.pending_rsvp_emails || []).includes(userEmail);
@@ -171,6 +171,35 @@ export default function EventCard({ event, userEmail, onRSVP, onUpvote, showAIIn
               <MessageCircle className="w-3.5 h-3.5 mr-1.5" />
               Chat
             </Button>
+          )}
+
+          {isCreator && onDelete && (
+            <div className="flex gap-1">
+              {onEdit && (
+                <Button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onEdit(event);
+                  }}
+                  size="sm"
+                  variant="ghost"
+                  className="w-9 h-9 p-0 rounded-xl text-gray-400 hover:text-purple-600 hover:bg-purple-50 border border-transparent hover:border-purple-100"
+                >
+                  <Edit2 className="w-4 h-4" />
+                </Button>
+              )}
+              <Button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onDelete(event._id);
+                }}
+                size="sm"
+                variant="ghost"
+                className="w-9 h-9 p-0 rounded-xl text-gray-400 hover:text-rose-600 hover:bg-rose-50 border border-transparent hover:border-rose-100"
+              >
+                <Trash2 className="w-4 h-4" />
+              </Button>
+            </div>
           )}
           
           {/* Upvote for Community Events */}

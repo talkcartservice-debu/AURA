@@ -19,6 +19,7 @@ export default function Events() {
   const qc = useQueryClient();
   const [activeTab, setActiveTab] = useState("all");
   const [showCreate, setShowCreate] = useState(false);
+  const [editingEvent, setEditingEvent] = useState(null);
   const [showSuggestModal, setShowSuggestModal] = useState(false);
   const [activeEventAttendees, setActiveEventAttendees] = useState(null);
   const [activeRequestsEvent, setActiveRequestsEvent] = useState(null);
@@ -37,13 +38,24 @@ export default function Events() {
 
   async function handleCreateEvent(data) {
     try {
-      await eventService.create(data);
+      if (editingEvent) {
+        await eventService.update(editingEvent._id, data);
+        toast.success("Event updated!");
+      } else {
+        await eventService.create(data);
+        toast.success("Event created!");
+      }
       qc.invalidateQueries(["events"]);
       setShowCreate(false);
-      toast.success("Event created!");
+      setEditingEvent(null);
     } catch (err) {
-      toast.error(err.response?.data?.error || "Failed to create event");
+      toast.error(err.response?.data?.error || `Failed to ${editingEvent ? 'update' : 'create'} event`);
     }
+  }
+
+  async function handleEditEvent(event) {
+    setEditingEvent(event);
+    setShowCreate(true);
   }
 
   async function handleRSVP(event) {
@@ -52,6 +64,17 @@ export default function Events() {
       qc.invalidateQueries(["events"]);
     } catch (err) {
       toast.error(err.response?.data?.error || "Failed to RSVP");
+    }
+  }
+
+  async function handleDeleteEvent(eventId) {
+    if (!confirm("Are you sure you want to delete this event? This action cannot be undone.")) return;
+    try {
+      await eventService.delete(eventId);
+      qc.invalidateQueries(["events"]);
+      toast.success("Event deleted successfully");
+    } catch (err) {
+      toast.error(err.response?.data?.error || "Failed to delete event");
     }
   }
 
@@ -155,6 +178,8 @@ export default function Events() {
                   onShowAttendees={(event) => setActiveEventAttendees(event)}
                   onOpenChat={(event) => navigate(`/events/${event._id}/chat`)}
                   onManageRequests={(event) => setActiveRequestsEvent(event)}
+                  onDelete={handleDeleteEvent}
+                  onEdit={handleEditEvent}
                 />
               ))}
             </div>
@@ -189,6 +214,8 @@ export default function Events() {
                   onShowAttendees={(event) => setActiveEventAttendees(event)}
                   onOpenChat={(event) => navigate(`/events/${event._id}/chat`)}
                   onManageRequests={(event) => setActiveRequestsEvent(event)}
+                  onDelete={handleDeleteEvent}
+                  onEdit={handleEditEvent}
                 />
               ))}
             </div>
@@ -226,6 +253,8 @@ export default function Events() {
                   showAIInsights={true}
                   onOpenChat={(event) => navigate(`/events/${event._id}/chat`)}
                   onManageRequests={(event) => setActiveRequestsEvent(event)}
+                  onDelete={handleDeleteEvent}
+                  onEdit={handleEditEvent}
                 />
               ))}
             </div>
@@ -237,8 +266,12 @@ export default function Events() {
       {showCreate && (
         <CreateEventModal 
           userEmail={user?.email} 
-          onClose={() => setShowCreate(false)} 
+          onClose={() => {
+            setShowCreate(false);
+            setEditingEvent(null);
+          }} 
           onCreate={handleCreateEvent}
+          initialData={editingEvent}
         />
       )}
       
