@@ -1,10 +1,11 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/lib/AuthContext";
+import { usePWA } from "@/hooks/usePWA";
 import { systemService } from "@/api/entities";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Heart, Loader2, AlertCircle, CheckCircle2, Fingerprint, Eye, EyeOff } from "lucide-react";
+import { Heart, Loader2, AlertCircle, CheckCircle2, Fingerprint, Eye, EyeOff, Download } from "lucide-react";
 import { toast } from "sonner";
 import BiometricModal from "@/components/auth/BiometricModal";
 import { useBiometricAuth } from "@/hooks/useBiometricAuth";
@@ -24,6 +25,7 @@ function validatePassword(password) {
 
 export default function Landing() {
   const { user, login, signup } = useAuth();
+  const { isInstallable, installApp } = usePWA();
   const navigate = useNavigate();
   const { hasRegisteredBiometric, authenticateWithBiometric } = useBiometricAuth();
   const [mode, setMode] = useState("login");
@@ -388,6 +390,29 @@ export default function Landing() {
           </>
         </form>
       </div>
+
+      {/* PWA Install Section */}
+      {isInstallable && (
+        <div className="mt-8 w-full max-w-sm">
+          <button
+            onClick={installApp}
+            className="w-full flex items-center justify-between bg-white/10 backdrop-blur-md border border-white/20 rounded-2xl p-4 text-white hover:bg-white/20 transition-all group"
+          >
+            <div className="flex items-center gap-3 text-left">
+              <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center shadow-sm group-hover:scale-110 transition-transform">
+                <Download className="w-5 h-5 text-rose-500" />
+              </div>
+              <div>
+                <p className="text-sm font-bold">Install AURAsync</p>
+                <p className="text-[10px] text-rose-100">Get the full app experience</p>
+              </div>
+            </div>
+            <div className="bg-white/20 rounded-full px-3 py-1 text-[10px] font-bold uppercase tracking-wider">
+              Install
+            </div>
+          </button>
+        </div>
+      )}
 
       {/* Biometric Modal */}
       <BiometricModal

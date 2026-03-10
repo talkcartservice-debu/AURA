@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { authService, profileService, subscriptionService, uploadService } from "@/api/entities";
 import { useAuth } from "@/lib/AuthContext";
+import { usePWA } from "@/hooks/usePWA";
 import { useNavigate } from "react-router-dom";
 import PhotoUpload from "@/components/profile/PhotoUpload";
 import HobbyEditor from "@/components/profile/HobbyEditor";
@@ -17,7 +18,7 @@ import { Textarea } from "@/components/ui/textarea";
 import {
   LogOut, Loader2, ShieldCheck, Brain, Flame, Save, Camera,
   EyeOff, Eye, MapPin, Heart, Dumbbell, Utensils, Wine, Cigarette,
-  Target, Sparkles, Fingerprint,
+  Target, Sparkles, Fingerprint, Download,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -85,6 +86,7 @@ function getCompletionPercent(profile) {
 
 export default function MyProfile() {
   const { user, logout } = useAuth();
+  const { isInstallable, installApp } = usePWA();
   const navigate = useNavigate();
   const qc = useQueryClient();
   const { data: profile, isLoading } = useQuery({ queryKey: ["myProfile"], queryFn: profileService.getMe });
@@ -383,6 +385,23 @@ export default function MyProfile() {
       </button>
       {!isSilverPremium && (
         <p className="text-xs text-gray-400 text-center -mt-2">Requires Silver Premium subscription</p>
+      )}
+
+      {/* PWA Install Section */}
+      {isInstallable && (
+        <div className="mt-6 bg-gradient-to-r from-rose-50 to-purple-50 rounded-3xl p-6 border-2 border-rose-100 shadow-sm text-center">
+          <div className="w-12 h-12 bg-white rounded-2xl flex items-center justify-center mx-auto mb-3 shadow-sm">
+            <Download className="w-6 h-6 text-rose-500" />
+          </div>
+          <h3 className="font-bold text-gray-900 mb-1">Install AURAsync App</h3>
+          <p className="text-xs text-gray-500 mb-4">Install our app for a smoother experience and instant notifications.</p>
+          <Button 
+            onClick={installApp} 
+            className="w-full rounded-2xl bg-gradient-to-r from-rose-500 to-purple-600 text-white font-bold"
+          >
+            Install Now
+          </Button>
+        </div>
       )}
 
       {/* Password Update Section */}
