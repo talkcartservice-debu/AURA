@@ -218,6 +218,12 @@ export const relationshipCoachService = {
     api.get("/coach/profile-review").then((r) => r.data),
 };
 
+// System / Health
+export const systemService = {
+  checkHealth: () => api.get("/health").then((r) => r.data),
+  getMaintenanceStatus: () => api.get("/auth/maintenance-status").then(r => r.data.maintenance).catch(() => false),
+};
+
 // Admin
 export const adminService = {
   login: (data) => api.post("/admin/login", data).then((r) => r.data),
@@ -225,6 +231,7 @@ export const adminService = {
   getUsers: (params) => api.get("/admin/users", { params }).then((r) => r.data),
   updateUserRole: (id, role) => api.patch(`/admin/users/${id}/role`, { role }).then((r) => r.data),
   updateUserStatus: (id, status) => api.patch(`/admin/users/${id}/status`, { status }).then((r) => r.data),
+  deleteUser: (id) => api.delete(`/admin/users/${id}`).then((r) => r.data),
   warnUser: (id, reason) => api.post(`/admin/users/${id}/warn`, { reason }).then((r) => r.data),
   forceVerification: (id) => api.post(`/admin/users/${id}/force-verification`).then((r) => r.data),
   grantPremium: (id) => api.post(`/admin/users/${id}/grant-premium`).then((r) => r.data),
@@ -245,4 +252,5 @@ export const adminService = {
   getSettings: () => api.get("/admin/settings").then((r) => r.data),
   updateSetting: (key, value) => api.patch(`/admin/settings/${key}`, { value }).then((r) => r.data),
   getSafetyStats: () => api.get("/admin/safety-stats").then((r) => r.data),
+  getGrowthStats: () => api.get("/admin/growth-stats").then((r) => r.data),
 };

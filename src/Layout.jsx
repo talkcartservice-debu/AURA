@@ -3,9 +3,10 @@ import { Outlet, NavLink, useNavigate } from "react-router-dom";
 import { Compass, Heart, MessageCircle, Users, User, Calendar } from "lucide-react";
 import { useSocket } from "@/hooks/useSocket";
 import { toast } from "sonner";
-import { messageService, profileService } from "@/api/entities";
+import { messageService, profileService, systemService } from "@/api/entities";
 import CallProvider from "@/components/calls/CallProvider";
 import MatchCelebration from "@/components/matches/MatchCelebration";
+import { AlertCircle } from "lucide-react";
 
 const NAV_ITEMS = [
   { to: "/discover", icon: Compass, label: "Discover" },
@@ -22,6 +23,11 @@ export default function Layout() {
   const [hasShownUnreadSummary, setHasShownUnreadSummary] = useState(false);
   const [activeMatchCelebration, setActiveMatchCelebration] = useState(null);
   const [activeMatchProfile, setActiveMatchProfile] = useState(null);
+  const [isMaintenance, setIsMaintenance] = useState(false);
+
+  useEffect(() => {
+    systemService.getMaintenanceStatus().then(setIsMaintenance);
+  }, []);
 
   // Helper to show browser push notification (where supported)
   const showBrowserNotification = (title, body) => {
@@ -171,6 +177,12 @@ export default function Layout() {
   return (
     <CallProvider>
       <div className="min-h-screen bg-gray-50 pb-20">
+        {isMaintenance && (
+          <div className="bg-amber-500 text-white px-4 py-2 flex items-center justify-center gap-2 text-sm font-bold sticky top-0 z-[100]">
+            <AlertCircle className="w-4 h-4" />
+            Platform is in maintenance mode. Some features may be limited.
+          </div>
+        )}
         <MatchCelebration
           match={activeMatchCelebration}
           profile={activeMatchProfile}

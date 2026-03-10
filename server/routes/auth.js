@@ -8,6 +8,15 @@ import auth from "../middleware/auth.js";
 
 const router = Router();
 
+router.get("/maintenance-status", async (req, res) => {
+  try {
+    const setting = await SystemSetting.findOne({ key: 'maintenance_mode' });
+    res.json({ maintenance: !!setting?.value });
+  } catch (err) {
+    res.json({ maintenance: false });
+  }
+});
+
 router.post("/signup", async (req, res) => {
   try {
     const registrationSetting = await SystemSetting.findOne({ key: 'allow_registration' });

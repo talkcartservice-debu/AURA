@@ -84,6 +84,7 @@ const AdminDashboard = () => {
   const [reports, setReports] = useState([]);
   const [verifications, setVerifications] = useState([]);
   const [safetyStats, setSafetyStats] = useState(null);
+  const [growthData, setGrowthData] = useState([]);
   const [revenueData, setRevenueData] = useState(null);
   const [events, setEvents] = useState([]);
   const [settings, setSettings] = useState([]);
@@ -177,11 +178,15 @@ const AdminDashboard = () => {
       }
 
       if (['super_admin', 'admin'].includes(user?.role)) {
-        const revData = await adminService.getRevenue();
+        const [revData, growthStats, eventsData, settingsData] = await Promise.all([
+          adminService.getRevenue(),
+          adminService.getGrowthStats(),
+          adminService.getEvents(),
+          adminService.getSettings()
+        ]);
         setRevenueData(revData);
-        const eventsData = await adminService.getEvents();
+        setGrowthData(growthStats);
         setEvents(eventsData);
-        const settingsData = await adminService.getSettings();
         setSettings(settingsData);
       }
     } catch (err) {
@@ -209,9 +214,10 @@ const AdminDashboard = () => {
     if (!reason) return;
     try {
       await adminService.warnUser(userId, reason);
-      alert("Warning sent successfully");
+      toast.success("Warning sent successfully");
     } catch (err) {
       console.error("Failed to warn user", err);
+      toast.error("Failed to send warning");
     }
   };
 
@@ -219,10 +225,11 @@ const AdminDashboard = () => {
     if (!window.confirm("Are you sure you want to force this user to re-verify?")) return;
     try {
       await adminService.forceVerification(userId);
-      alert("User forced to re-verify");
+      toast.success("User forced to re-verify");
       fetchData();
     } catch (err) {
       console.error("Failed to force verification", err);
+      toast.error("Failed to force verification");
     }
   };
 
@@ -230,10 +237,11 @@ const AdminDashboard = () => {
     if (!window.confirm("Grant 30 days of Premium to this user?")) return;
     try {
       await adminService.grantPremium(userId);
-      alert("Premium granted successfully");
+      toast.success("Premium granted successfully");
       fetchData();
     } catch (err) {
       console.error("Failed to grant premium", err);
+      toast.error("Failed to grant premium");
     }
   };
 
@@ -242,10 +250,11 @@ const AdminDashboard = () => {
     if (!days) return;
     try {
       await adminService.extendPremium(userId, parseInt(days));
-      alert(`Premium extended by ${days} days`);
+      toast.success(`Premium extended by ${days} days`);
       fetchData();
     } catch (err) {
       console.error("Failed to extend premium", err);
+      toast.error("Failed to extend premium");
     }
   };
 
@@ -255,10 +264,11 @@ const AdminDashboard = () => {
     if (reason === null) return;
     try {
       await adminService.refundTransaction(txId, amount ? parseFloat(amount) : null, reason);
-      alert("Refund processed successfully");
+      toast.success("Refund processed successfully");
       fetchData();
     } catch (err) {
       console.error("Failed to process refund", err);
+      toast.error(err.response?.data?.error || "Failed to process refund");
     }
   };
 
@@ -268,6 +278,19 @@ const AdminDashboard = () => {
       fetchData();
     } catch (err) {
       console.error("Failed to update status", err);
+    }
+  };
+
+  const handleDeleteUser = async (userId) => {
+    if (!window.confirm("CRITICAL: Are you sure you want to PERMANENTLY DELETE this user and all their data? This cannot be undone.")) return;
+    try {
+      await adminService.deleteUser(userId);
+      toast.success("User deleted successfully");
+      setIsUserModalOpen(false);
+      fetchUsers();
+    } catch (err) {
+      console.error("Failed to delete user", err);
+      toast.error(err.response?.data?.error || "Failed to delete user");
     }
   };
 
@@ -598,28 +621,32 @@ const AdminDashboard = () => {
                   title="Total Users" 
                   value={stats?.totalUsers || 0} 
                   icon={<Users className="text-blue-500" />} 
-                  trend="+12%"
+                  trend={stats?.trends?.users || "0%"}
+                  trendDown={stats?.trends?.users?.startsWith('-')}
                   loading={loading}
                 />
                 <StatCard 
                   title="Active Users" 
                   value={stats?.activeUsers || 0} 
                   icon={<Users className="text-green-500" />} 
-                  trend="+8%"
+                  trend={stats?.trends?.active || "0%"}
+                  trendDown={stats?.trends?.active?.startsWith('-')}
                   loading={loading}
                 />
                 <StatCard 
                   title="Premium Users" 
                   value={stats?.premiumUsers || 0} 
                   icon={<Shield className="text-amber-500" />} 
-                  trend="+5%"
+                  trend={stats?.trends?.premium || "0%"}
+                  trendDown={stats?.trends?.premium?.startsWith('-')}
                   loading={loading}
                 />
                 <StatCard 
                   title="Total Matches" 
                   value={stats?.totalMatches || 0} 
                   icon={<TrendingUp className="text-green-500" />} 
-                  trend="+18%"
+                  trend={stats?.trends?.matches || "0%"}
+                  trendDown={stats?.trends?.matches?.startsWith('-')}
                   loading={loading}
                 />
               </div>
@@ -682,14 +709,14 @@ const AdminDashboard = () => {
                   </CardHeader>
                   <CardContent className="h-80">
                     <ResponsiveContainer width="100%" height="100%">
-                      <BarChart data={revenueData?.revenueTrend || []}>
+                      <BarChart data={growthData}>
                         <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
                         <XAxis dataKey="month" stroke="#94a3b8" fontSize={12} tickLine={false} axisLine={false} />
                         <YAxis stroke="#94a3b8" fontSize={12} tickLine={false} axisLine={false} />
                         <Tooltip 
                           contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }}
                         />
-                        <Bar dataKey="revenue" fill="#8b5cf6" radius={[4, 4, 0, 0]} />
+                        <Bar dataKey="users" fill="#8b5cf6" radius={[4, 4, 0, 0]} />
                       </BarChart>
                     </ResponsiveContainer>
                   </CardContent>
@@ -863,6 +890,10 @@ const AdminDashboard = () => {
                                         </DropdownMenuItem>
                                         <DropdownMenuItem onClick={() => handleUpdateStatus(u._id, u.status === 'banned' ? 'active' : 'banned')} className="text-rose-600">
                                           {u.status === 'banned' ? 'Unban Account' : 'Ban Permanently'}
+                                        </DropdownMenuItem>
+                                        <DropdownMenuSeparator />
+                                        <DropdownMenuItem onClick={() => handleDeleteUser(u._id)} className="text-red-700 font-bold">
+                                          Delete Account
                                         </DropdownMenuItem>
                                       </>
                                     )}
@@ -1183,19 +1214,22 @@ const AdminDashboard = () => {
                   title="Total Revenue" 
                   value={`$${revenueData?.total || 0}`} 
                   icon={<TrendingUp className="text-green-500" />} 
-                  trend="+15%"
+                  trend={stats?.trends?.revenue || "+0%"}
+                  trendDown={stats?.trends?.revenue?.startsWith('-')}
                 />
                 <StatCard 
                   title="Premium Subscriptions" 
                   value={revenueData?.premiumCount || 0} 
                   icon={<Shield className="text-amber-500" />} 
-                  trend="+8%"
+                  trend={stats?.trends?.premium || "+0%"}
+                  trendDown={stats?.trends?.premium?.startsWith('-')}
                 />
                 <StatCard 
                   title="Casual Connections" 
                   value={revenueData?.casualCount || 0} 
                   icon={<Users className="text-blue-500" />} 
-                  trend="+12%"
+                  trend={stats?.trends?.active || "+0%"}
+                  trendDown={stats?.trends?.active?.startsWith('-')}
                 />
               </div>
 
@@ -1490,6 +1524,41 @@ const AdminDashboard = () => {
                     onCheckedChange={(v) => handleUpdateSetting('force_photo_verification', v)}
                     disabled={user.role !== 'super_admin'}
                   />
+                  <NumericSettingRow 
+                    label="Matching Sensitivity" 
+                    description="Algorithm strictness for daily matches (1-100)" 
+                    value={settings.find(s => s.key === 'matching_sensitivity')?.value ?? 70}
+                    onChange={(v) => handleUpdateSetting('matching_sensitivity', v)}
+                    disabled={user.role !== 'super_admin'}
+                    min={1}
+                    max={100}
+                  />
+                </CardContent>
+              </Card>
+
+              <Card className="border-gray-200">
+                <CardHeader>
+                  <CardTitle className="text-xl font-bold">Communication & limits</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-6">
+                  <NumericSettingRow 
+                    label="Global Messaging Limit" 
+                    description="Maximum free messages per user per day" 
+                    value={settings.find(s => s.key === 'global_messaging_limit')?.value ?? 20}
+                    onChange={(v) => handleUpdateSetting('global_messaging_limit', v)}
+                    disabled={user.role !== 'super_admin'}
+                    min={0}
+                    max={500}
+                  />
+                  <NumericSettingRow 
+                    label="Daily Matches Count" 
+                    description="Number of AI-generated matches per user daily" 
+                    value={settings.find(s => s.key === 'daily_matches_count')?.value ?? 3}
+                    onChange={(v) => handleUpdateSetting('daily_matches_count', v)}
+                    disabled={user.role !== 'super_admin'}
+                    min={1}
+                    max={10}
+                  />
                 </CardContent>
               </Card>
             </div>
@@ -1733,6 +1802,13 @@ const AdminDashboard = () => {
                               variant={selectedUser.status === 'banned' ? 'success' : 'danger'} 
                               onClick={() => handleUpdateStatus(selectedUser._id, selectedUser.status === 'banned' ? 'active' : 'banned')} 
                             />
+                            <div className="pt-4 mt-4 border-t border-gray-200">
+                              <ActionButton 
+                                label="Delete Account Permanently" 
+                                variant="danger"
+                                onClick={() => handleDeleteUser(selectedUser._id)} 
+                              />
+                            </div>
                           </>
                         )}
                       </div>
@@ -1855,6 +1931,26 @@ const AlertCard = ({ type, count, title, description, onClick }) => (
         </Badge>
       </div>
       <p className="text-sm text-gray-600">{description}</p>
+    </div>
+  </div>
+);
+
+const NumericSettingRow = ({ label, description, value, onChange, disabled, min = 0, max = 1000 }) => (
+  <div className={`flex items-center justify-between ${disabled ? 'opacity-50' : ''}`}>
+    <div className="space-y-0.5">
+      <div className="text-sm font-bold text-gray-900">{label}</div>
+      <div className="text-xs text-gray-500">{description}</div>
+    </div>
+    <div className="flex items-center gap-3">
+      <Input 
+        type="number"
+        min={min}
+        max={max}
+        value={value ?? ""}
+        onChange={(e) => onChange(parseInt(e.target.value))}
+        disabled={disabled}
+        className="w-24 h-9 rounded-lg text-center font-bold"
+      />
     </div>
   </div>
 );

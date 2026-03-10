@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/lib/AuthContext";
+import { systemService } from "@/api/entities";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Heart, Loader2, AlertCircle, CheckCircle2, Fingerprint, Eye, EyeOff } from "lucide-react";
@@ -36,6 +37,11 @@ export default function Landing() {
   const [errors, setErrors] = useState({});
   const [showBiometricModal, setShowBiometricModal] = useState(false);
   const [hasBiometric, setHasBiometric] = useState(false);
+  const [isMaintenance, setIsMaintenance] = useState(false);
+
+  useEffect(() => {
+    systemService.getMaintenanceStatus().then(setIsMaintenance);
+  }, []);
 
   // Check if user has biometric registered when email is entered
   useEffect(() => {
@@ -183,7 +189,16 @@ export default function Landing() {
         <p className="text-rose-100 text-sm">Find your perfect match</p>
       </div>
 
-      <div className="bg-white rounded-3xl shadow-2xl w-full max-w-sm p-6">
+      <div className="bg-white rounded-3xl shadow-2xl w-full max-w-sm p-6 relative">
+        {isMaintenance && (
+          <div className="mb-4 p-3 bg-amber-50 border border-amber-200 rounded-2xl flex items-start gap-2">
+            <AlertCircle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+            <div className="text-[10px] leading-tight text-amber-900 font-medium">
+              <p className="font-bold">Maintenance in Progress</p>
+              <p>The platform is undergoing scheduled maintenance. Admin login is still active.</p>
+            </div>
+          </div>
+        )}
         <form onSubmit={handleSubmit} className="space-y-3">
           {/* Signup Fields */}
           {mode === "signup" && (

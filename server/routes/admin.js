@@ -96,9 +96,28 @@ router.post('/login', async (req, res) => {
 // Protected admin stats
 router.get('/stats', adminAuth(['super_admin', 'admin', 'support']), async (req, res) => {
   try {
-    const [totalUsers, activeUsers, premiumUsers, casualUsers, totalMessages, totalMatches, revenueResult] = await Promise.all([
+    const now = new Date();
+    const last24h = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+    const prev24h = new Date(now.getTime() - 48 * 60 * 60 * 1000);
+
+    const [
+      totalUsers, 
+      activeUsers, 
+      premiumUsers, 
+      casualUsers, 
+      totalMessages, 
+      totalMatches, 
+      revenueResult,
+      newUsersLast24h,
+      newUsersPrev24h,
+      matchesLast24h,
+      matchesPrev24h,
+      activePrev24h,
+      revenueLast24h,
+      revenuePrev24h
+    ] = await Promise.all([
       User.countDocuments(),
-      User.countDocuments({ last_login: { $gte: new Date(Date.now() - 24 * 60 * 60 * 1000) } }),
+      User.countDocuments({ last_login: { $gte: last24h } }),
       Subscription.countDocuments({ plan: 'premium', is_active: true }),
       Subscription.countDocuments({ casual_addon: true, is_active: true }),
       Message.countDocuments(),
@@ -106,8 +125,27 @@ router.get('/stats', adminAuth(['super_admin', 'admin', 'support']), async (req,
       Transaction.aggregate([
         { $match: { status: 'success' } },
         { $group: { _id: null, total: { $sum: "$amount" } } }
+      ]),
+      User.countDocuments({ createdAt: { $gte: last24h } }),
+      User.countDocuments({ createdAt: { $gte: prev24h, $lt: last24h } }),
+      Match.countDocuments({ createdAt: { $gte: last24h } }),
+      Match.countDocuments({ createdAt: { $gte: prev24h, $lt: last24h } }),
+      User.countDocuments({ last_login: { $gte: prev24h, $lt: last24h } }),
+      Transaction.aggregate([
+        { $match: { status: 'success', createdAt: { $gte: last24h } } },
+        { $group: { _id: null, total: { $sum: "$amount" } } }
+      ]),
+      Transaction.aggregate([
+        { $match: { status: 'success', createdAt: { $gte: prev24h, $lt: last24h } } },
+        { $group: { _id: null, total: { $sum: "$amount" } } }
       ])
     ]);
+
+    const calculateTrend = (current, previous) => {
+      if (previous === 0) return current > 0 ? "+100%" : "0%";
+      const diff = ((current - previous) / previous) * 100;
+      return (diff >= 0 ? "+" : "") + diff.toFixed(1) + "%";
+    };
 
     res.json({
       totalUsers,
@@ -116,10 +154,43 @@ router.get('/stats', adminAuth(['super_admin', 'admin', 'support']), async (req,
       casualUsers,
       totalMessages,
       totalMatches,
-      revenue: revenueResult[0]?.total || 0 
+      revenue: revenueResult[0]?.total || 0,
+      trends: {
+        users: calculateTrend(newUsersLast24h, newUsersPrev24h),
+        matches: calculateTrend(matchesLast24h, matchesPrev24h),
+        active: calculateTrend(activeUsers, activePrev24h),
+        revenue: calculateTrend(revenueLast24h[0]?.total || 0, revenuePrev24h[0]?.total || 0),
+        premium: "+0%" // Static for now as sub history is complex
+      }
     });
   } catch (err) {
     console.error("Admin stats error:", err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.get('/growth-stats', adminAuth(['super_admin', 'admin']), async (req, res) => {
+  try {
+    const months = [];
+    for (let i = 5; i >= 0; i--) {
+      const d = new Date();
+      d.setMonth(d.setMonth(d.getMonth() - i));
+      months.push({
+        name: d.toLocaleString('default', { month: 'short' }),
+        year: d.getFullYear(),
+        monthNum: d.getMonth()
+      });
+    }
+
+    const growthTrend = await Promise.all(months.map(async m => {
+      const start = new Date(m.year, m.monthNum, 1);
+      const end = new Date(m.year, m.monthNum + 1, 0);
+      const count = await User.countDocuments({ createdAt: { $gte: start, $lte: end } });
+      return { month: m.name, users: count };
+    }));
+
+    res.json(growthTrend);
+  } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
@@ -200,6 +271,28 @@ router.patch('/users/:id/status', adminAuth(['super_admin']), async (req, res) =
     await logAdminAction(req.user, 'update_status', user._id, 'User', { newStatus: status });
     
     res.json(user);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.delete('/users/:id', adminAuth(['super_admin']), async (req, res) => {
+  try {
+    const user = await User.findById(req.params.id);
+    if (!user) return res.status(404).json({ error: 'User not found' });
+
+    // Delete related data
+    await Promise.all([
+      User.findByIdAndDelete(req.params.id),
+      UserProfile.findOneAndDelete({ user_email: user.email }),
+      Subscription.findOneAndDelete({ user_email: user.email }),
+      Match.deleteMany({ $or: [{ user1_email: user.email }, { user2_email: user.email }] }),
+      Message.deleteMany({ $or: [{ sender_email: user.email }, { recipient_email: user.email }] })
+    ]);
+
+    await logAdminAction(req.user, 'delete_user', user._id, 'User', { email: user.email });
+
+    res.json({ message: 'User and all related data deleted successfully' });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
