@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/lib/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Heart, Loader2, AlertCircle, CheckCircle2, Fingerprint } from "lucide-react";
+import { Heart, Loader2, AlertCircle, CheckCircle2, Fingerprint, Eye, EyeOff } from "lucide-react";
 import { toast } from "sonner";
 import BiometricModal from "@/components/auth/BiometricModal";
 import { useBiometricAuth } from "@/hooks/useBiometricAuth";
@@ -30,6 +30,8 @@ export default function Landing() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState({});
   const [showBiometricModal, setShowBiometricModal] = useState(false);
@@ -85,6 +87,8 @@ export default function Landing() {
     setUsername("");
     setPassword("");
     setConfirmPassword("");
+    setShowPassword(false);
+    setShowConfirmPassword(false);
   };
 
   async function handleSubmit(e) {
@@ -226,19 +230,26 @@ export default function Landing() {
           </div>
 
           {/* Password Field */}
-          <div>
+          <div className="relative group">
             <Input
-              type="password"
+              type={showPassword ? "text" : "password"}
               placeholder="Password"
               value={password}
               onChange={(e) => {
                 setPassword(e.target.value);
                 if (errors.password) setErrors({ ...errors, password: null });
               }}
-              className={`rounded-xl ${errors.password ? 'border-red-500 focus-visible:ring-red-500' : ''}`}
+              className={`rounded-xl pr-10 ${errors.password ? 'border-red-500 focus-visible:ring-red-500' : ''}`}
               required
               minLength={mode === "login" ? 1 : 8}
             />
+            <button
+              type="button"
+              onClick={() => setShowPassword(!showPassword)}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 focus:outline-none transition-colors"
+            >
+              {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+            </button>
             {errors.password && (
               <div className="flex items-center gap-1 mt-1 text-xs text-red-600">
                 <AlertCircle className="w-3 h-3" />
@@ -255,18 +266,25 @@ export default function Landing() {
 
           {/* Confirm Password Field (Signup only) */}
           {mode === "signup" && (
-            <div>
+            <div className="relative group">
               <Input
-                type="password"
+                type={showConfirmPassword ? "text" : "password"}
                 placeholder="Confirm Password"
                 value={confirmPassword}
                 onChange={(e) => {
                   setConfirmPassword(e.target.value);
                   if (errors.confirmPassword) setErrors({ ...errors, confirmPassword: null });
                 }}
-                className={`rounded-xl ${errors.confirmPassword ? 'border-red-500 focus-visible:ring-red-500' : ''}`}
+                className={`rounded-xl pr-10 ${errors.confirmPassword ? 'border-red-500 focus-visible:ring-red-500' : ''}`}
                 required
               />
+              <button
+                type="button"
+                onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 focus:outline-none transition-colors"
+              >
+                {showConfirmPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+              </button>
               {errors.confirmPassword && (
                 <div className="flex items-center gap-1 mt-1 text-xs text-red-600">
                   <AlertCircle className="w-3 h-3" />

@@ -64,6 +64,11 @@ export default function MyProfile() {
   const [saving, setSaving] = useState(false);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const [togglingIncognito, setTogglingIncognito] = useState(false);
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [showCurrentPassword, setShowCurrentPassword] = useState(false);
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [updatingPassword, setUpdatingPassword] = useState(false);
 
   const isSilverPremium = sub?.plan === "premium" && sub?.is_active;
 
@@ -340,26 +345,60 @@ export default function MyProfile() {
           Update Password
         </h3>
         <div className="space-y-3">
-          <Input id="currentPass" type="password" placeholder="Current Password" color="rose" className="rounded-xl" />
-          <Input id="newPass" type="password" placeholder="New Password" color="rose" className="rounded-xl" />
+          <div className="relative">
+            <Input 
+              type={showCurrentPassword ? "text" : "password"} 
+              placeholder="Current Password" 
+              color="rose" 
+              className="rounded-xl pr-10" 
+              value={currentPassword}
+              onChange={(e) => setCurrentPassword(e.target.value)}
+            />
+            <button
+              type="button"
+              onClick={() => setShowCurrentPassword(!showCurrentPassword)}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 focus:outline-none transition-colors"
+            >
+              {showCurrentPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+            </button>
+          </div>
+          <div className="relative">
+            <Input 
+              type={showNewPassword ? "text" : "password"} 
+              placeholder="New Password" 
+              color="rose" 
+              className="rounded-xl pr-10" 
+              value={newPassword}
+              onChange={(e) => setNewPassword(e.target.value)}
+            />
+            <button
+              type="button"
+              onClick={() => setShowNewPassword(!showNewPassword)}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 focus:outline-none transition-colors"
+            >
+              {showNewPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+            </button>
+          </div>
           <Button 
             variant="outline" 
             className="w-full rounded-xl border-rose-200 text-rose-600 hover:bg-rose-50"
+            disabled={updatingPassword}
             onClick={async () => {
-              const current = document.getElementById('currentPass').value;
-              const next = document.getElementById('newPass').value;
-              if(!current || !next) return toast.error("Please fill all fields");
+              if(!currentPassword || !newPassword) return toast.error("Please fill all fields");
+              setUpdatingPassword(true);
               try {
-                await authService.updatePassword({ currentPassword: current, newPassword: next });
+                await authService.updatePassword({ currentPassword, newPassword });
                 toast.success("Password updated!");
-                document.getElementById('currentPass').value = '';
-                document.getElementById('newPass').value = '';
+                setCurrentPassword("");
+                setNewPassword("");
               } catch(e) {
                 toast.error(e.response?.data?.error || "Update failed");
+              } finally {
+                setUpdatingPassword(false);
               }
             }}
           >
-            Change Password
+            {updatingPassword ? <Loader2 className="w-4 h-4 animate-spin" /> : "Change Password"}
           </Button>
         </div>
       </div>
